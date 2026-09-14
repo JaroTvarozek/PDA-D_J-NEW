@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.18.3
+// @version      1.19.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -552,23 +552,24 @@
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-/* vsetky tlacidla v riadku su rovnako vysoke - natiahnu sa na to najvyssie
-   (dvojriadkove "Meranie v Procese s OTK"), text ostava zvisle na stred */
-#${CONTAINER_ID} { align-content:flex-start !important; align-items:stretch !important; row-gap:0 !important; }
-#${CONTAINER_ID} .statusBtn { height:auto !important; min-height:0 !important; margin:4px !important;
+/* Plati pre VSETKY stavove tlacidla - aj pre osobny stav hore (Stretnutie,
+   Prestavka, cakanie), lebo appka im dava tu istu triedu statusBtn.
+   V riadku su rovnako vysoke: natiahnu sa na to najvyssie (dvojriadkove
+   "Meranie v Procese s OTK"), text ostava zvisle na stred. */
+.pda-status-row { align-content:flex-start !important; align-items:stretch !important; row-gap:0 !important; }
+.statusBtn { height:auto !important; min-height:0 !important; margin:4px !important;
   align-self:stretch !important; border-radius:12px !important;
   border:2px solid #13315c !important;
   box-shadow:0 2px 6px rgba(16,36,63,.20) !important;
   transition:transform .13s ease, box-shadow .13s ease !important; }
-#${CONTAINER_ID} .statusBtn .sapMBtnInner { height:100% !important; width:100% !important; min-height:0 !important;
+.statusBtn .sapMBtnInner { height:100% !important; width:100% !important; min-height:0 !important;
   padding:11px 16px !important; border-radius:12px !important; box-shadow:none !important;
   display:flex !important; align-items:center !important; justify-content:center !important;
   box-sizing:border-box !important; }
-#${CONTAINER_ID} .statusBtn .sapMBtnContent, #${CONTAINER_ID} .statusBtn bdi {
-  line-height:1.25 !important; }
-#${CONTAINER_ID} .statusBtn:hover { transform:translateY(-3px) !important;
+.statusBtn .sapMBtnContent, .statusBtn bdi { line-height:1.25 !important; white-space:normal !important; }
+.statusBtn:hover { transform:translateY(-3px) !important;
   box-shadow:0 10px 20px rgba(16,36,63,.30) !important; }
-#${CONTAINER_ID} .statusBtn:active { transform:translateY(-1px) !important;
+.statusBtn:active { transform:translateY(-1px) !important;
   box-shadow:0 3px 8px rgba(16,36,63,.24) !important; }
 `;
             document.head.appendChild(st);
@@ -613,6 +614,11 @@
 
         function apply() {
             injectStyles();
+            // riadok, v ktorom stavove tlacidla sedia, musi natahovat na rovnaku vysku
+            document.querySelectorAll('.statusBtn').forEach((b) => {
+                const p = b.parentElement;
+                if (p && !p.classList.contains('pda-status-row')) p.classList.add('pda-status-row');
+            });
             document.querySelectorAll('.sapMBtn').forEach((btn) => {
                 if (btn.closest(OWN_UI)) return;
                 paint(btn, ruleFor(btn));
@@ -2436,7 +2442,8 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             st.textContent = `
 #${LEFT_ID} { background:#fff !important; border:1px solid #dfe4ec !important; border-radius:14px !important;
   padding:8px !important; box-sizing:border-box; }
-#${SCROLL_ID} { border:0 !important; background:transparent !important; }
+/* zaoblene hrany hore aj dole - vidno, kde posuvny zoznam konci */
+#${SCROLL_ID} { border:0 !important; background:transparent !important; border-radius:14px !important; }
 #${LIST_ID} { background:transparent !important; }
 /* kazdy zaznam = samostatna pilulka s plnym, jemnym ale viditelnym ramom;
    pozadie sa strieda (biela / svetlomodra), aby bolo vidiet, kde jedna konci */
@@ -2781,11 +2788,15 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             st.id = STYLE_ID;
             st.textContent = `
 .pda-opis-skryty { display:none !important; }
-#${BTN_ID} { display:flex; align-items:center; gap:14px; width:100%; box-sizing:border-box; margin:6px 0 4px;
+#${BTN_ID} { display:flex; align-items:center; gap:14px; width:100%; box-sizing:border-box; margin:6px 0 20px;
   padding:12px 18px; border:2px solid #b9cbe8; border-radius:14px; background:#f4f8ff; cursor:pointer;
   text-align:left; font:14px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif; color:#13315c;
-  transition:border-color .12s, box-shadow .12s, background .12s; }
-#${BTN_ID}:hover { border-color:#2563eb; background:#eaf2ff; box-shadow:0 4px 14px rgba(16,36,63,.12); }
+  box-shadow:0 2px 6px rgba(16,36,63,.10);
+  transition:transform .13s ease, box-shadow .13s ease, border-color .13s, background .13s; }
+/* rovnako "plasticke" ako stavove tlacidla - pri prechode mysou sa nadvihne */
+#${BTN_ID}:hover { border-color:#2563eb; background:#eaf2ff; transform:translateY(-3px);
+  box-shadow:0 10px 20px rgba(16,36,63,.22); }
+#${BTN_ID}:active { transform:translateY(-1px); box-shadow:0 3px 8px rgba(16,36,63,.18); }
 #${BTN_ID} .ikona { font-size:30px; line-height:1; flex:0 0 auto; }
 #${BTN_ID} .stred { flex:1 1 auto; min-width:0; }
 #${BTN_ID} .nadpis { display:block; font-size:15px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
@@ -3500,6 +3511,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         const STYLE_ID = '__pda_detail_header_styles__';
         const COL_ID = '__pda_detail_rightcol__';
         const MACHINE_ID = '__pda_detail_machine__';
+        const STATUS_ID = 'WorkcenterDetail--Order_Status_Flexbox';
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -3517,10 +3529,16 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 #${HEADER_ID} .sapUiForm [class*="sapUiRespGridSpan"],
 #${HEADER_ID} .sapUiForm [class*="sapUiRespGridHSpace"] { padding-top:1px !important; padding-bottom:1px !important;
   margin-top:0 !important; margin-bottom:0 !important; }
-#${HEADER_ID} .sapUiForm .sapMLabel { font-size:11px !important; line-height:1.45 !important;
-  color:#6b7c95 !important; text-transform:uppercase; letter-spacing:.04em; font-weight:700 !important; }
+/* popisok aj hodnota musia sediet na tom istom riadku - rovnaka vyska riadku
+   v px (nie nasobok), inak ich rozne velke pisma posunu voci sebe */
+#${HEADER_ID} .sapUiForm .sapMLabel { font-size:11px !important; line-height:22px !important;
+  color:#6b7c95 !important; text-transform:uppercase; letter-spacing:.04em; font-weight:700 !important;
+  display:inline-block !important; vertical-align:middle !important; }
 #${HEADER_ID} .sapUiForm .sapMText, #${HEADER_ID} .sapUiForm .sapMTextMaxLine {
-  font-size:13px !important; line-height:1.45 !important; color:#13315c !important; font-weight:600 !important; }
+  font-size:13px !important; line-height:22px !important; color:#13315c !important; font-weight:600 !important;
+  display:inline-block !important; vertical-align:middle !important; }
+#${HEADER_ID} .sapUiForm .sapMLabel .sapMLabelTextWrapper,
+#${HEADER_ID} .sapUiForm .sapMText .sapMTextMaxLine { line-height:22px !important; }
 #${HEADER_ID} .sapUiForm .sapUiFormTitle, #${HEADER_ID} .sapUiForm .sapUiFormTitleH5 { display:none !important; }
 
 /* prepinac Machine */
@@ -3581,6 +3599,34 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             if (sw.parentElement !== row) row.appendChild(sw);
         }
 
+        /*
+         * Lavy okraj stavovych tlacidiel a pilulky POPIS OPERACIE zarovnany
+         * s boxom hore (zakazka / material / production order). Odsadenie sa
+         * nehada v pixeloch - odmeria sa priamo na stranke, takze to sedi aj
+         * pri inej sirke okna. Zmena `style` nespusti DomWatch (sleduje len
+         * pridavanie a mazanie prvkov), takze sa to nemoze rozkmitat.
+         */
+        function zarovnajVlavo() {
+            const form = document.querySelector('#' + HEADER_ID + ' .sapUiForm');
+            if (!form) return;
+            const ciel = form.getBoundingClientRect().left;
+            if (!ciel) return;
+
+            const stav = document.getElementById(STATUS_ID);
+            const prvy = stav && stav.querySelector('.statusBtn');
+            if (prvy) posun(stav, 'paddingLeft', ciel - prvy.getBoundingClientRect().left);
+
+            const opis = document.getElementById('__pda_opis_button__');
+            if (opis) posun(opis, 'marginLeft', ciel - opis.getBoundingClientRect().left);
+        }
+
+        function posun(el, vlastnost, rozdiel) {
+            if (!el || !isFinite(rozdiel)) return;
+            const teraz = parseFloat(el.style[vlastnost]) || 0;
+            const nove = Math.max(0, Math.round(teraz + rozdiel));
+            if (Math.abs(nove - teraz) > 1) el.style[vlastnost] = nove + 'px';
+        }
+
         function apply() {
             const header = document.getElementById(HEADER_ID);
             if (!header) return;
@@ -3599,13 +3645,80 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             if (confirm && confirm.parentElement !== col) col.appendChild(confirm);
             // 3) prepinac Machine uplne dole
             riadokPrepinaca(col);
+
+            zarovnajVlavo();
         }
 
         DomWatch.add(apply);
         onReady(apply);
     }
 
-    /* -------------------- 3.14 Ladiaci vypis ---------------------------- */
+    /* ---------- 3.15 Priestorove kolacove grafy (casy SAP) ---------- */
+
+    /*
+     * Tri kolace pod popisom operacie (SAP Setup / Machine / Labor Time) su ploche.
+     * Modul ich nechava presne take, ake su - nekresli ich odznova, nemeni data -
+     * len ich vizualne nakloni (pohlad zboku) a prida tien, takze posobia
+     * priestorovo. Pri prechode mysou sa naklon zmensi, akoby sa graf otocil k tebe.
+     *
+     * Kolace sa hladaju cez texty casov, ktore maju stabilne ID
+     * (WorkcenterDetail--SetupTime_Text / MachineTime_Text / LaborTime_Text) -
+     * kolac je v tom istom boxe. Vdaka tomu sa netrafi do casoveho grafu vlavo.
+     */
+    function modDonut3D() {
+        const KOTVY = ['WorkcenterDetail--SetupTime_Text',
+                       'WorkcenterDetail--MachineTime_Text',
+                       'WorkcenterDetail--LaborTime_Text'];
+        const MIMO = ['ResourceDetails', 'DialogChart'];
+        const STYLE_ID = '__pda_donut3d_styles__';
+        const TRIEDA = 'pda-3d';
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+.${TRIEDA} { transform:perspective(720px) rotateX(38deg) !important;
+  filter:drop-shadow(0 16px 12px rgba(16,36,63,.34)) !important;
+  transform-origin:50% 60% !important;
+  transition:transform .22s ease, filter .22s ease !important; }
+.${TRIEDA}:hover { transform:perspective(720px) rotateX(18deg) scale(1.06) !important;
+  filter:drop-shadow(0 10px 8px rgba(16,36,63,.28)) !important; }
+/* aby naklonený kolac nebol orezany okrajom boxu */
+.pda-3d-box { overflow:visible !important; }
+`;
+            document.head.appendChild(st);
+        }
+
+        function box(el) {
+            return el.closest('.sapMVBox') || el.closest('.sapMFlexBox') || el.parentElement;
+        }
+
+        function apply() {
+            injectStyles();
+            KOTVY.forEach((id) => {
+                const text = document.getElementById(id);
+                if (!text) return;
+                const b = box(text);
+                if (!b) return;
+                if (!b.classList.contains('pda-3d-box')) b.classList.add('pda-3d-box');
+
+                b.querySelectorAll('canvas, svg').forEach((g) => {
+                    if (MIMO.indexOf(g.id) !== -1) return;
+                    if (g.classList.contains(TRIEDA)) return;
+                    // ikonky a drobnosti nechame tak, kolac je velky
+                    const r = g.getBoundingClientRect();
+                    if (r.width < 60 || r.height < 60) return;
+                    g.classList.add(TRIEDA);
+                });
+            });
+        }
+
+        DomWatch.add(apply);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.16 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -3715,6 +3828,13 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             desc: 'Zákazka, materiál a Production Order stlačí do jedného kompaktného boxu a prepínač Machine, okienko VÝKRES aj tlačidlo Operation Complete dá do jedného riadku. Uvoľní sa tým miesto dole.',
             def: true,
             run: modDetailHeader,
+        },
+        {
+            id: 'donut3d',
+            name: 'Priestorové koláčové grafy',
+            desc: 'Tri koláče s časmi SAP (Setup / Machine / Labor) nakloní ako pohľad zboku a pridá tieň. Dáta ani hodnoty sa nemenia, iba vzhľad.',
+            def: true,
+            run: modDonut3D,
         },
         {
             id: 'debug',
