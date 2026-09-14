@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.17.1
+// @version      1.18.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -539,6 +539,35 @@
     function modButtonColors() {
         const CONTAINER_ID = 'WorkcenterDetail--Order_Status_Flexbox';
         const OWN_UI = '#__pda_settings_overlay__, #__pda_settings_pass__, #__pda_overview__, #__pda_pdm_overlay__, #__pda_button_menu__';
+        const STYLE_ID = '__pda_status_buttons_styles__';
+
+        /*
+         * Tvar stavovych tlacidiel (farby nanasa `paint` inline podla pravidiel):
+         * povodne boli vysoke cez 100 px a pri viacerych riadkoch bola medzi
+         * riadkami velka diera. Teraz su nizsie, s jemnym ramom a tienom a pri
+         * prechode mysou sa o 2 px nadvihnu.
+         */
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+#${CONTAINER_ID} { align-content:flex-start !important; row-gap:0 !important; }
+#${CONTAINER_ID} .statusBtn { height:auto !important; min-height:0 !important; margin:4px !important;
+  border-radius:12px !important; border:1px solid rgba(255,255,255,.4) !important;
+  box-shadow:0 2px 6px rgba(16,36,63,.20) !important;
+  transition:transform .13s ease, box-shadow .13s ease !important; }
+#${CONTAINER_ID} .statusBtn .sapMBtnInner { height:auto !important; min-height:0 !important;
+  padding:11px 16px !important; border-radius:12px !important; box-shadow:none !important; }
+#${CONTAINER_ID} .statusBtn .sapMBtnContent, #${CONTAINER_ID} .statusBtn bdi {
+  line-height:1.25 !important; }
+#${CONTAINER_ID} .statusBtn:hover { transform:translateY(-3px) !important;
+  box-shadow:0 10px 20px rgba(16,36,63,.30) !important; }
+#${CONTAINER_ID} .statusBtn:active { transform:translateY(-1px) !important;
+  box-shadow:0 3px 8px rgba(16,36,63,.24) !important; }
+`;
+            document.head.appendChild(st);
+        }
 
         function textOf(btn) {
             return (btn.textContent || '').trim();
@@ -578,6 +607,7 @@
         }
 
         function apply() {
+            injectStyles();
             document.querySelectorAll('.sapMBtn').forEach((btn) => {
                 if (btn.closest(OWN_UI)) return;
                 paint(btn, ruleFor(btn));
@@ -3390,8 +3420,8 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
         const SWITCH_ID = 'WorkcenterDetail--Machine_Switch';
         const DRAWING_ID = '__pda_order_drawing_wrapper__';
         const STYLE_ID = '__pda_detail_header_styles__';
-        const TOPBAR_ID = '__pda_detail_topbar__';
-        const TITLE_ID = 'WorkcenterDetail--Planned_Worklist_Title';
+        const COL_ID = '__pda_detail_rightcol__';
+        const MACHINE_ID = '__pda_detail_machine__';
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -3422,11 +3452,11 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
 #${DRAWING_ID}.pda-v-riadku { width:auto !important; margin:0 !important; flex:0 0 auto; }
 #${DRAWING_ID}.pda-v-riadku > button { margin-right:0 !important; }
 
-/* prazdne miesto pri nazve pracoviska vyuzijeme na prepinac a VYKRES */
-.pda-hdr-flex { display:flex !important; align-items:center !important; width:100% !important; }
-#${TOPBAR_ID} { margin-left:auto; display:flex; align-items:center; gap:14px; flex:0 0 auto;
-  padding-left:16px; }
-#${TOPBAR_ID} .sapMLabel { font-size:12px !important; color:#5b6b83 !important; }
+/* pravy stlpec: zhora VYKRES, pod nim Operation Complete, pod tym prepinac */
+#${COL_ID} { display:flex; flex-direction:column; align-items:stretch; gap:8px;
+  flex:0 0 auto; margin-left:auto; padding-left:12px; }
+#${COL_ID} .pda-machine { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+#${COL_ID} .pda-machine .sapMLabel { font-size:12px !important; color:#5b6b83 !important; }
 
 /* Operation Complete: na jeden riadok, nizsie a sirsie */
 #${CONFIRM_ID} { height:auto !important; min-height:0 !important; max-height:none !important;
@@ -3440,37 +3470,37 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
         }
 
         /*
-         * Vedla nazvu pracoviska ("Arbeitsplatz: 4829 - ...") ostava vpravo
-         * prazdne miesto - tam sa presunie prepinac Machine aj okienko VYKRES.
-         * Vratime vlastny pruh, do ktoreho sa oba prvky presuvaju.
+         * Vpravo v hlavicke drzime vlastny stlpec a do neho presuvame (zhora dole):
+         *   okienko VYKRES  ->  tlacidlo Operation Complete  ->  prepinac Machine
+         * Prepinac ma popisok "Machine" ako samostatny prvok pred sebou, preto sa
+         * oba davaju do maleho riadku, nech drzia spolu.
          */
-        function topBar() {
-            const titul = document.getElementById(TITLE_ID) ||
-                          document.querySelector('[id$="Planned_Worklist_Title"]');
-            if (!titul) return null;
-            const hdr = titul.closest('.sapMPanelHdr') || titul.closest('.sapMIBar') ||
-                        titul.closest('.sapMTB') || titul.parentElement;
-            if (!hdr) return null;
-            if (!hdr.classList.contains('pda-hdr-flex')) hdr.classList.add('pda-hdr-flex');
-
-            let bar = document.getElementById(TOPBAR_ID);
-            if (!bar) {
-                bar = document.createElement('div');
-                bar.id = TOPBAR_ID;
+        function pravyStlpec(header) {
+            let col = document.getElementById(COL_ID);
+            if (!col) {
+                col = document.createElement('div');
+                col.id = COL_ID;
             }
-            if (bar.parentElement !== hdr) hdr.appendChild(bar);
-            return bar;
+            if (col.parentElement !== header) header.appendChild(col);
+            return col;
         }
 
-        // prepinac aj s popiskom "Machine" (popisok je samostatny prvok pred nim)
-        function presunPrepinac(bar) {
+        function riadokPrepinaca(col) {
+            let row = document.getElementById(MACHINE_ID);
+            if (!row) {
+                row = document.createElement('div');
+                row.id = MACHINE_ID;
+                row.className = 'pda-machine';
+            }
+            if (row.parentElement !== col) col.appendChild(row);
+
             const sw = document.getElementById(SWITCH_ID);
             if (!sw) return;
             const popisok = sw.previousElementSibling &&
                             /machine/i.test(sw.previousElementSibling.textContent || '')
                 ? sw.previousElementSibling : null;
-            if (popisok && popisok.parentElement !== bar) bar.appendChild(popisok);
-            if (sw.parentElement !== bar) bar.appendChild(sw);
+            if (popisok && popisok.parentElement !== row) row.appendChild(popisok);
+            if (sw.parentElement !== row) row.appendChild(sw);
         }
 
         function apply() {
@@ -3478,24 +3508,19 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
             if (!header) return;
             injectStyles();
 
+            const col = pravyStlpec(header);
+
+            // 1) VYKRES uplne hore, cely vidno
             const wrap = document.getElementById(DRAWING_ID);
-            const bar = topBar();
-
-            if (bar) {
-                // hore: prepinac Machine + okienko VYKRES
-                presunPrepinac(bar);
-                if (wrap && wrap.parentElement !== bar) bar.appendChild(wrap);
-                if (wrap && !wrap.classList.contains('pda-v-riadku')) wrap.classList.add('pda-v-riadku');
-                return;
+            if (wrap) {
+                if (wrap.parentElement !== col) col.appendChild(wrap);
+                if (!wrap.classList.contains('pda-v-riadku')) wrap.classList.add('pda-v-riadku');
             }
-
-            // zaloha, ked sa nazov pracoviska nenajde: aspon do riadku pred tlacidlo
+            // 2) tlacidlo Operation Complete
             const confirm = document.getElementById(CONFIRM_ID);
-            if (!wrap || !confirm || !confirm.parentElement) return;
-            if (!confirm.parentElement.contains(wrap) || wrap.nextElementSibling !== confirm) {
-                confirm.parentElement.insertBefore(wrap, confirm);
-            }
-            if (!wrap.classList.contains('pda-v-riadku')) wrap.classList.add('pda-v-riadku');
+            if (confirm && confirm.parentElement !== col) col.appendChild(confirm);
+            // 3) prepinac Machine uplne dole
+            riadokPrepinaca(col);
         }
 
         DomWatch.add(apply);
