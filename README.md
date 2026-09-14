@@ -88,13 +88,4 @@ ostatné bežia ďalej — spúšťajú sa každý vo vlastnom `try/catch`.
 
 ---
 
-## Staršie samostatné skripty
-
-Pôvodných 8 samostatných skriptov je v priečinku `stare-skripty/` (`enhanced-header.user.js`
-a spol.) a zostáva tu pre prípad, že ich má niekto ešte nainštalované. **Pre nové
-inštalácie použi `pda-suite.user.js`.**
-
-Ak prechádzaš zo starých skriptov: nainštaluj suite a staré v Tampermonkey
-zmaž, inak by niektoré veci bežali dvakrát.
-
 Pôvodný základ pochádza z repozitára `Dan1elG94/HF-Slovakia-PDA-scripts`.
