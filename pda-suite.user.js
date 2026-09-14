@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.17.0
+// @version      1.17.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3390,6 +3390,8 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
         const SWITCH_ID = 'WorkcenterDetail--Machine_Switch';
         const DRAWING_ID = '__pda_order_drawing_wrapper__';
         const STYLE_ID = '__pda_detail_header_styles__';
+        const TOPBAR_ID = '__pda_detail_topbar__';
+        const TITLE_ID = 'WorkcenterDetail--Planned_Worklist_Title';
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -3420,6 +3422,12 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
 #${DRAWING_ID}.pda-v-riadku { width:auto !important; margin:0 !important; flex:0 0 auto; }
 #${DRAWING_ID}.pda-v-riadku > button { margin-right:0 !important; }
 
+/* prazdne miesto pri nazve pracoviska vyuzijeme na prepinac a VYKRES */
+.pda-hdr-flex { display:flex !important; align-items:center !important; width:100% !important; }
+#${TOPBAR_ID} { margin-left:auto; display:flex; align-items:center; gap:14px; flex:0 0 auto;
+  padding-left:16px; }
+#${TOPBAR_ID} .sapMLabel { font-size:12px !important; color:#5b6b83 !important; }
+
 /* Operation Complete: na jeden riadok, nizsie a sirsie */
 #${CONFIRM_ID} { height:auto !important; min-height:0 !important; max-height:none !important;
   width:auto !important; flex:0 0 auto; margin:0 !important; }
@@ -3431,13 +3439,57 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
             document.head.appendChild(st);
         }
 
+        /*
+         * Vedla nazvu pracoviska ("Arbeitsplatz: 4829 - ...") ostava vpravo
+         * prazdne miesto - tam sa presunie prepinac Machine aj okienko VYKRES.
+         * Vratime vlastny pruh, do ktoreho sa oba prvky presuvaju.
+         */
+        function topBar() {
+            const titul = document.getElementById(TITLE_ID) ||
+                          document.querySelector('[id$="Planned_Worklist_Title"]');
+            if (!titul) return null;
+            const hdr = titul.closest('.sapMPanelHdr') || titul.closest('.sapMIBar') ||
+                        titul.closest('.sapMTB') || titul.parentElement;
+            if (!hdr) return null;
+            if (!hdr.classList.contains('pda-hdr-flex')) hdr.classList.add('pda-hdr-flex');
+
+            let bar = document.getElementById(TOPBAR_ID);
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = TOPBAR_ID;
+            }
+            if (bar.parentElement !== hdr) hdr.appendChild(bar);
+            return bar;
+        }
+
+        // prepinac aj s popiskom "Machine" (popisok je samostatny prvok pred nim)
+        function presunPrepinac(bar) {
+            const sw = document.getElementById(SWITCH_ID);
+            if (!sw) return;
+            const popisok = sw.previousElementSibling &&
+                            /machine/i.test(sw.previousElementSibling.textContent || '')
+                ? sw.previousElementSibling : null;
+            if (popisok && popisok.parentElement !== bar) bar.appendChild(popisok);
+            if (sw.parentElement !== bar) bar.appendChild(sw);
+        }
+
         function apply() {
             const header = document.getElementById(HEADER_ID);
             if (!header) return;
             injectStyles();
 
-            // VYKRES medzi prepinac a tlacidlo (ked modul vykresu bezi)
             const wrap = document.getElementById(DRAWING_ID);
+            const bar = topBar();
+
+            if (bar) {
+                // hore: prepinac Machine + okienko VYKRES
+                presunPrepinac(bar);
+                if (wrap && wrap.parentElement !== bar) bar.appendChild(wrap);
+                if (wrap && !wrap.classList.contains('pda-v-riadku')) wrap.classList.add('pda-v-riadku');
+                return;
+            }
+
+            // zaloha, ked sa nazov pracoviska nenajde: aspon do riadku pred tlacidlo
             const confirm = document.getElementById(CONFIRM_ID);
             if (!wrap || !confirm || !confirm.parentElement) return;
             if (!confirm.parentElement.contains(wrap) || wrap.nextElementSibling !== confirm) {
