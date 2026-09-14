@@ -12,7 +12,7 @@ pracoviskami, načítanie výkresov, obsluhu skenera a čítačky kariet.
 
 **[▶ Inštalovať PDA Suite](https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js)**
 
-`pda-suite.user.js` obsahuje **všetkých 8 modulov v jednom súbore**. Nainštaluješ
+`pda-suite.user.js` obsahuje **všetkých 13 modulov v jednom súbore**. Nainštaluješ
 ho raz a jednotlivé moduly si potom zapínaš a vypínaš v nastaveniach — nemusíš
 nič odinštalovávať ani doinštalovávať.
 
