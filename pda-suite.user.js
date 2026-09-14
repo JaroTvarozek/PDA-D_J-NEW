@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.18.0
+// @version      1.18.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -552,13 +552,18 @@
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-#${CONTAINER_ID} { align-content:flex-start !important; row-gap:0 !important; }
+/* vsetky tlacidla v riadku su rovnako vysoke - natiahnu sa na to najvyssie
+   (dvojriadkove "Meranie v Procese s OTK"), text ostava zvisle na stred */
+#${CONTAINER_ID} { align-content:flex-start !important; align-items:stretch !important; row-gap:0 !important; }
 #${CONTAINER_ID} .statusBtn { height:auto !important; min-height:0 !important; margin:4px !important;
-  border-radius:12px !important; border:1px solid rgba(255,255,255,.4) !important;
+  align-self:stretch !important; border-radius:12px !important;
+  border:1px solid rgba(255,255,255,.4) !important;
   box-shadow:0 2px 6px rgba(16,36,63,.20) !important;
   transition:transform .13s ease, box-shadow .13s ease !important; }
-#${CONTAINER_ID} .statusBtn .sapMBtnInner { height:auto !important; min-height:0 !important;
-  padding:11px 16px !important; border-radius:12px !important; box-shadow:none !important; }
+#${CONTAINER_ID} .statusBtn .sapMBtnInner { height:100% !important; width:100% !important; min-height:0 !important;
+  padding:11px 16px !important; border-radius:12px !important; box-shadow:none !important;
+  display:flex !important; align-items:center !important; justify-content:center !important;
+  box-sizing:border-box !important; }
 #${CONTAINER_ID} .statusBtn .sapMBtnContent, #${CONTAINER_ID} .statusBtn bdi {
   line-height:1.25 !important; }
 #${CONTAINER_ID} .statusBtn:hover { transform:translateY(-3px) !important;
