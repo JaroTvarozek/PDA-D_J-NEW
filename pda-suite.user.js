@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.16.1
+// @version      1.16.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2412,8 +2412,8 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 #${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected:nth-child(even) { border:2px solid #0b2447 !important;
   background:#13315c !important; box-shadow:0 3px 12px rgba(19,49,92,.35) !important; }
 #${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .pda-pill { color:#fff; }
-#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .t-zak { background:#fff; color:#13315c; }
-#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .t-op { background:#2f5fa8; color:#fff; border-color:#5b87cc; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .t-vyr { background:#fff; color:#13315c; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .t-zak { background:#2f5fa8; color:#fff; border-color:#5b87cc; }
 #${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .mat { color:#fff; }
 #${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .matn { color:#c9d8ef; }
 #${LIST_ID} .sapMLIB.pda-pill-on > *:not([data-pda-pill]) { display:none !important; }
@@ -2423,13 +2423,13 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 .pda-pill .r2 { display:flex; align-items:baseline; gap:5px; margin-top:2px; overflow:hidden; white-space:nowrap; }
 .pda-pill .t { display:inline-block; padding:1px 7px; border-radius:999px; font-size:11.5px; font-weight:700;
   white-space:nowrap; letter-spacing:0; line-height:1.35; }
-.pda-pill .t-zak { background:#13315c; color:#fff; }
-.pda-pill .t-op { background:#dfeafc; color:#1b4f9c; border:1px solid #b9cdee; }
+.pda-pill .t-vyr { background:#13315c; color:#fff; }
+.pda-pill .t-zak { background:#dfeafc; color:#1b4f9c; border:1px solid #b9cdee; }
 .pda-pill .t-run { background:#e7f6ec; color:#1d7a3c; border:1px solid #b6e2c5; margin-left:auto; }
 .pda-pill .mat { font-size:11.5px; font-weight:700; color:#0f172a; white-space:nowrap; }
 .pda-pill .matn { font-size:11.5px; color:#4a5568; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
+.pda-pill .t-vyr { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .pda-pill .t-zak { flex:0 0 auto; }
-.pda-pill .t-op { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
 /* bublina s celym obsahom zakazky */
 #${TIP_ID} { display:none; position:fixed; z-index:100001; pointer-events:none;
   background:#fff; border:1px solid #b9cbe8; border-radius:10px; padding:10px 12px;
@@ -2553,8 +2553,9 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 
             const r1 = document.createElement('div');
             r1.className = 'r1';
+            // najprv vyrobna zakazka (tmavomodra), az potom zakaznicka (svetla)
+            if (vyroba) r1.appendChild(span('t t-vyr', vyroba));
             if (zak) r1.appendChild(span('t t-zak', zak));
-            if (vyroba) r1.appendChild(span('t t-op', vyroba));
             if (Number(d.count) > 0) r1.appendChild(span('t t-run', '● vyrába'));
             box.appendChild(r1);
 
