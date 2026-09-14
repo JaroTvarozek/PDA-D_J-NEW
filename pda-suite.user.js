@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.15.0
+// @version      1.16.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2610,7 +2610,7 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
                 .filter(Boolean).join(' - '));
             tipRiadok(t, 'Materiál', [txt(d.materialNo).replace(/^0+/, ''), txt(d.material) || txt(d.descriptionShort)]
                 .filter(Boolean).join(' - '));
-            tipRiadok(t, 'Operácia', txt(d.description));
+            // text operacie sa v bubline zamerne neukazuje (zelanie pouzivatela)
             tipRiadok(t, 'Stav', [txt(d.status), Number(d.count) > 0 ? 'vyrába (' + d.count + ')' : '']
                 .filter(Boolean).join(' · '));
             el.appendChild(t);
@@ -2900,6 +2900,7 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         const MAX_V = 220;
 
         let chybaKnizniceLogged = false;
+        let detailOtvoreny = false;
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -2914,6 +2915,13 @@ canvas#ResourceDetails { max-width:100% !important; }
   line-height:1.2 !important; margin:0 !important; padding:0 !important; }
 .pda-chart-nadpis .sapMTitleInner, .pda-chart-nadpis bdi, .pda-chart-nadpis span { font-size:11px !important;
   font-weight:700 !important; color:#8e9bb0 !important; white-space:nowrap !important; }
+/* detail grafu (lupa) - takmer cela obrazovka, nech je vidiet viac */
+#Popups--Dialog_Chart { width:96vw !important; height:92vh !important; max-width:96vw !important;
+  max-height:92vh !important; left:2vw !important; top:4vh !important; transform:none !important;
+  border-radius:16px !important; }
+#Popups--Dialog_Chart .sapMDialogScrollCont, #Popups--Chart_FlexBox { width:100% !important; height:100% !important;
+  box-sizing:border-box; }
+#Popups--Dialog_Chart canvas#DialogChart { width:100% !important; height:100% !important; }
 `;
             document.head.appendChild(st);
         }
@@ -2977,6 +2985,10 @@ canvas#ResourceDetails { max-width:100% !important; }
             if (!chart || chart.__pdaUpraveny) return false;
             chart.__pdaUpraveny = true;
 
+            // detail (lupa) je takmer cez celu obrazovku - tam su hrubsie pasy
+            // a hustejsia casova os, aby bolo vidiet viac
+            const velky = canvas.id === 'DialogChart';
+
             const o = chart.options = chart.options || {};
             o.maintainAspectRatio = false;
             o.responsive = true;
@@ -2984,10 +2996,10 @@ canvas#ResourceDetails { max-width:100% !important; }
 
             // --- pasy: zaoblene a tenke ---
             (chart.data && chart.data.datasets ? chart.data.datasets : []).forEach((ds) => {
-                ds.borderRadius = 6;
+                ds.borderRadius = velky ? 9 : 6;
                 ds.borderSkipped = false;
-                ds.barThickness = 22;
-                ds.maxBarThickness = 26;
+                ds.barThickness = velky ? 40 : 22;
+                ds.maxBarThickness = velky ? 56 : 26;
                 ds.borderWidth = 0;
             });
 
@@ -2998,9 +3010,9 @@ canvas#ResourceDetails { max-width:100% !important; }
                 maxRotation: 0,
                 minRotation: 0,
                 autoSkip: true,
-                maxTicksLimit: 10,
-                color: '#8e9bb0',
-                font: { size: 11 },
+                maxTicksLimit: velky ? 24 : 10,
+                color: velky ? '#5b6b83' : '#8e9bb0',
+                font: { size: velky ? 13 : 11 },
                 callback(value) {
                     let raw = value;
                     try {
@@ -3015,7 +3027,10 @@ canvas#ResourceDetails { max-width:100% !important; }
             });
 
             const y = sc.y = sc.y || {};
-            y.ticks = Object.assign({}, y.ticks, { color: '#5b6b83', font: { size: 11.5, weight: '600' } });
+            y.ticks = Object.assign({}, y.ticks, {
+                color: '#5b6b83',
+                font: { size: velky ? 14 : 11.5, weight: '600' },
+            });
             y.grid = Object.assign({}, y.grid, { display: false, drawBorder: false });
 
             // --- nadpis v grafe ("Workcenter reports from last 24h: …") je zbytocny ---
@@ -3039,11 +3054,11 @@ canvas#ResourceDetails { max-width:100% !important; }
                 });
             }
 
-            // --- nizsie platno -> viac miesta na zoznam zakaziek ---
+            // --- platno: v detaile cele okno, inak nizke (viac miesta na zakazky) ---
             const wrap = canvas.parentElement;
             if (wrap) {
                 wrap.style.position = wrap.style.position || 'relative';
-                wrap.style.height = vyskaGrafu(chart) + 'px';
+                wrap.style.height = velky ? '100%' : vyskaGrafu(chart) + 'px';
             }
 
             try { chart.resize(); } catch (e) { /* ignore */ }
@@ -3065,10 +3080,38 @@ canvas#ResourceDetails { max-width:100% !important; }
             });
         }
 
+        /*
+         * Detail grafu (lupa): dialog je cez CSS zvacseny na 96 x 92 % obrazovky,
+         * ale Chart.js sa do novej velkosti prekresli az po zmene velkosti okna
+         * (overene uz v Python verzii). Preto pri kazdom otvoreni posleme jeden
+         * `resize` a graf prepocitame.
+         */
+        function dopasujDetail(C) {
+            const dlg = document.getElementById('Popups--Dialog_Chart');
+            const otvoreny = !!(dlg && dlg.getBoundingClientRect().width > 0);
+            if (otvoreny === detailOtvoreny) return;
+            detailOtvoreny = otvoreny;
+            if (!otvoreny) return;
+
+            setTimeout(() => {
+                try {
+                    const canvas = document.getElementById('DialogChart');
+                    const ch = C && canvas ? instancia(C, canvas) : null;
+                    if (ch) {
+                        upravChart(ch, canvas);
+                        ch.resize();
+                        ch.update('none');
+                    }
+                    W.dispatchEvent(new Event('resize'));
+                } catch (e) { /* ignore */ }
+            }, 150);
+        }
+
         function apply() {
             injectStyles();
             zmensiNadpis();
             const C = kniznica();
+            dopasujDetail(C);
             CANVAS_IDS.forEach((id) => {
                 const canvas = document.getElementById(id);
                 if (!canvas) return;
