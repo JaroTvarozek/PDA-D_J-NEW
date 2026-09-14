@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.18.1
+// @version      1.18.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3295,7 +3295,7 @@ canvas#${MALY} { max-width:100% !important; }
             st.id = STYLE_ID;
             st.textContent = `
 ${DIALOG_SEL}.sapMDialog { border-radius:16px !important; overflow:hidden !important;
-  width:min(1100px,94vw) !important; max-width:94vw !important; max-height:86vh !important;
+  width:min(1450px,96vw) !important; max-width:96vw !important; max-height:86vh !important;
   box-shadow:0 24px 70px rgba(16,36,63,.38) !important; }
 ${DIALOG_SEL} .sapMDialogTitle, ${DIALOG_SEL} .sapMIBar.sapMHeader-CTX, ${DIALOG_SEL} .sapMDialogTitleGroup {
   background:#13315c !important; color:#fff !important; }
@@ -3324,6 +3324,15 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
 /* stav ako pilulka */
 .pda-stav { display:inline-block; padding:3px 11px; border-radius:999px; font-size:12px; font-weight:700;
   line-height:1.4; white-space:nowrap; background:#eef2f7; color:#41506a; }
+/* ziadne lamanie cisel a nazvov cez pol stlpca */
+${DIALOG_SEL} .sapMListTblCell, ${DIALOG_SEL} .sapMListTblHeaderCell { white-space:nowrap !important; }
+${DIALOG_SEL} .sapMListTblCell .sapMText, ${DIALOG_SEL} .sapMListTblCell .sapMLabel {
+  white-space:nowrap !important; word-break:normal !important; }
+/* stlpec s materialom je najsirsi - nazov sa ma zmestit na jeden riadok */
+${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
+.pda-sap { display:inline-block; margin-right:8px; padding:1px 8px; border-radius:999px;
+  background:#13315c; color:#fff; font-size:11.5px; font-weight:700; }
+.sapMLIBSelected .pda-sap { background:#fff; color:#13315c; }
 `;
             document.head.appendChild(st);
         }
@@ -3386,6 +3395,69 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
             }
         }
 
+        /*
+         * Stlpec "Materiál" je v tabulke najsirsi obsah (nazov vyrobku), pri
+         * povodnej sirke sa lamal na styri riadky. Index stlpca sa najde podla
+         * textu v hlavicke, takze to funguje aj keby appka stlpce prehodila.
+         */
+        function oznacStlpecMaterialu(dialog) {
+            const hlavicky = dialog.querySelectorAll('.sapMListTblHeaderCell');
+            if (!hlavicky.length) return;
+            let idx = -1;
+            hlavicky.forEach((h, i) => {
+                if (idx < 0 && /materi/i.test(h.textContent || '')) idx = i;
+            });
+            if (idx < 0) return;
+            if (!hlavicky[idx].classList.contains('pda-col-material')) {
+                hlavicky[idx].classList.add('pda-col-material');
+            }
+            dialog.querySelectorAll('.sapMListTblRow').forEach((r) => {
+                const bunky = r.querySelectorAll('.sapMListTblCell');
+                if (bunky.length !== hlavicky.length || !bunky[idx]) return;   // stlpce nesedia, radsej nic
+                if (!bunky[idx].classList.contains('pda-col-material')) {
+                    bunky[idx].classList.add('pda-col-material');
+                }
+                doplnSapCislo(r, bunky[idx]);
+            });
+        }
+
+        /*
+         * V stlpci "Materiál" je nazov vyrobku, nie SAP cislo. Ak ho riadok
+         * v datach ma (pole s "material" v nazve a hodnotou ako 25286609),
+         * predradi sa pred nazov ako tmava pilulka. Ked ho data nemaju,
+         * nestane sa nic.
+         */
+        function doplnSapCislo(row, bunka) {
+            if (bunka.querySelector('.pda-sap')) return;
+            let cislo = '';
+            try {
+                const c = resolveControl(row);
+                const ctx = c && typeof c.getBindingContext === 'function' ? c.getBindingContext() : null;
+                let o = ctx && typeof ctx.getObject === 'function' ? ctx.getObject() : null;
+                if (!o && c && c.oBindingContexts) {
+                    for (const meno in c.oBindingContexts) {
+                        const x = c.oBindingContexts[meno];
+                        const v = x && typeof x.getObject === 'function' ? x.getObject() : null;
+                        if (v) { o = v; break; }
+                    }
+                }
+                if (o) {
+                    for (const k in o) {
+                        if (!/material/i.test(k)) continue;
+                        const v = String(o[k] === undefined || o[k] === null ? '' : o[k]).trim().replace(/^0+/, '');
+                        if (/^\d{6,10}$/.test(v)) { cislo = v; break; }
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            if (!cislo) return;
+
+            const ciel = bunka.querySelector('.sapMText, .sapMLabel') || bunka;
+            const p = document.createElement('span');
+            p.className = 'pda-sap';
+            p.textContent = cislo;
+            ciel.insertBefore(p, ciel.firstChild);
+        }
+
         function apply() {
             const dialog = document.querySelector(DIALOG_SEL + '.sapMDialog');
             if (!dialog) return;
@@ -3395,6 +3467,7 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
                     if (el.querySelector('.sapMText, .sapMLabel')) return;   // len listy stromu
                     try { prekresliBunku(el); } catch (e) { /* kozmetika, nikdy nesmie zhodit dialog */ }
                 });
+            try { oznacStlpecMaterialu(dialog); } catch (e) { /* ignore */ }
         }
 
         DomWatch.add(apply);
