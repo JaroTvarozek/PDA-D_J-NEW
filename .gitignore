@@ -2,6 +2,10 @@
 # (obsahuje interne IP adresy, mena kolegov, pracovne postupy)
 .claude/
 
+# Zaloha nastaveni - obsahuje osobne cisla ludi a heslo panela. NIKDY do verejneho repa.
+pda-suite-nastavenia*.json
+*-nastavenia.json
+
 # Lokalne pomocne veci
 *.log
 _na_server_*/
