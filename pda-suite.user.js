@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.20.0
+// @version      1.20.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2432,6 +2432,8 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         const LEFT_ID = 'WorkcenterDetail--LeftColumn_FlexBox';
         const STYLE_ID = '__pda_orderlist_styles__';
         const TIP_ID = '__pda_pill_tip__';
+        const BOX1_ID = '__pda_left_box_zoznam__';
+        const BOX2_ID = '__pda_left_box_graf__';
         const MIN_HEIGHT = 240;       // pod tuto vysku zoznam nikdy nestlacime
         const BOTTOM_GAP = 18;        // medzera pod lavym stlpcom
 
@@ -2443,8 +2445,15 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-#${LEFT_ID} { background:#fff !important; border:1px solid #dfe4ec !important; border-radius:14px !important;
-  padding:8px !important; box-sizing:border-box; }
+/* Lavy stlpec: uzsi (pilulky maju sirku podla obsahu, siroky box nemal co
+   vyplnit) a rozdeleny na dva samostatne zaoblene boxy - zoznam zakaziek
+   a graf. Samotny stlpec uz teda ziadny ram nema. */
+#${LEFT_ID} { background:transparent !important; border:0 !important; box-shadow:none !important;
+  padding:0 !important; box-sizing:border-box;
+  width:430px !important; max-width:430px !important; min-width:0 !important; flex:0 0 430px !important; }
+.pda-left-box { background:#fff; border:1px solid #dfe4ec; border-radius:14px; padding:8px;
+  margin-bottom:10px; box-sizing:border-box; box-shadow:0 1px 4px rgba(16,36,63,.06); }
+.pda-left-box:last-child { margin-bottom:0; }
 /* zaoblene hrany hore aj dole - vidno, kde posuvny zoznam konci */
 #${SCROLL_ID} { border:0 !important; background:transparent !important; border-radius:14px !important; }
 #${LIST_ID} { background:transparent !important; }
@@ -2727,10 +2736,43 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             if (Math.abs(ciel - sc.offsetHeight) > 8) sc.style.height = ciel + 'px';
         }
 
+        /*
+         * Lavy stlpec sa rozdeli na dva zaoblene boxy: v prvom zoznam zakaziek,
+         * v druhom graf. Povodne deti stlpca sa presunu do nasich obalov - to,
+         * co obsahuje zoznam (a vsetko pred nim), ide do prveho, zvysok do druheho.
+         * Ked appka stlpec prekresli, obaly zmiznu a pri dalsom tiku sa spravia
+         * znova.
+         */
+        function rozdelStlpec() {
+            const left = document.getElementById(LEFT_ID);
+            const sc = document.getElementById(SCROLL_ID);
+            if (!left || !sc) return;
+
+            let b1 = document.getElementById(BOX1_ID);
+            let b2 = document.getElementById(BOX2_ID);
+            if (!b1) { b1 = document.createElement('div'); b1.id = BOX1_ID; b1.className = 'pda-left-box'; }
+            if (!b2) { b2 = document.createElement('div'); b2.id = BOX2_ID; b2.className = 'pda-left-box'; }
+            if (b1.parentElement !== left) left.insertBefore(b1, left.firstChild);
+            if (b2.parentElement !== left) left.appendChild(b2);
+
+            let zaZoznamom = false;
+            Array.from(left.children).forEach((ch) => {
+                if (ch === b1 || ch === b2) return;
+                if (ch.contains(sc)) {
+                    if (ch.parentElement !== b1) b1.appendChild(ch);
+                    zaZoznamom = true;
+                    return;
+                }
+                const ciel = zaZoznamom ? b2 : b1;
+                if (ch.parentElement !== ciel) ciel.appendChild(ch);
+            });
+        }
+
         function apply() {
             const list = document.getElementById(LIST_ID);
             if (!list) return;
             injectStyles();
+            rozdelStlpec();
 
             napojTip(list);
 
@@ -3622,7 +3664,20 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             if (prvy) posun(stav, 'paddingLeft', ciel - prvy.getBoundingClientRect().left);
 
             const opis = document.getElementById('__pda_opis_button__');
-            if (opis) posun(opis, 'marginLeft', ciel - opis.getBoundingClientRect().left);
+            if (!opis) return;
+            posun(opis, 'marginLeft', ciel - opis.getBoundingClientRect().left);
+
+            /*
+             * Pilulka POPIS bola siroka na celu plochu a podliezala pravy stlpec
+             * (Components / BOM, Parallel Process Handling) - prekryvali sa.
+             * Jej pravy okraj zarovname s poslednym stavovym tlacidlom.
+             */
+            const tlacidla = stav ? stav.querySelectorAll('.statusBtn') : null;
+            const posledne = tlacidla && tlacidla.length ? tlacidla[tlacidla.length - 1] : null;
+            if (!posledne) return;
+            const r = opis.getBoundingClientRect();
+            const sirka = Math.round(posledne.getBoundingClientRect().right - r.left);
+            if (sirka > 200 && Math.abs(sirka - r.width) > 2) opis.style.maxWidth = sirka + 'px';
         }
 
         function posun(el, vlastnost, rozdiel) {
