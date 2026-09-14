@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.16.2
+// @version      1.16.3
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2976,6 +2976,30 @@ canvas#${MALY} { max-width:100% !important; }
             return m ? dve(Number(m[1])) + ':' + m[2] : s;
         }
 
+        /*
+         * Popisky casu su u tohto grafu v `chart.data.labels`. Ukazalo sa (v1.16.1),
+         * ze zmeny v `options` sa pri prekresleni nie vzdy prejavia - appka si graf
+         * sama aktualizuje - kym zmeny v `data` drzia spolahlivo. Preto sa sekundy
+         * odrezavaju priamo v popiskoch.
+         * Prisny vzor: prepise sa LEN retazec, ktory je cely cas ("06:10:00",
+         * "2026-09-14 06:10:00"). Mena pracovnikov ("4829: Maros Minarik") ostanu.
+         */
+        const CAS_CELY = /^\s*(?:\d{4}-\d{2}-\d{2}[ T])?(\d{1,2}):(\d{2})(?::\d{2})?\s*$/;
+
+        function skratPopisky(chart) {
+            const l = chart.data && chart.data.labels;
+            if (!Array.isArray(l)) return false;
+            let zmena = false;
+            for (let i = 0; i < l.length; i++) {
+                if (typeof l[i] !== 'string') continue;
+                const m = l[i].match(CAS_CELY);
+                if (!m) continue;
+                const novy = dve(Number(m[1])) + ':' + m[2];
+                if (novy !== l[i]) { l[i] = novy; zmena = true; }
+            }
+            return zmena;
+        }
+
         function riadkov(chart) {
             try {
                 const l = chart.data && chart.data.labels;
@@ -3080,6 +3104,7 @@ canvas#${MALY} { max-width:100% !important; }
                 ds.borderWidth = 0;
             });
 
+            skratPopisky(chart);
             vsetkyOptions(chart).forEach((o) => { try { nastav(o, velky); } catch (e) { /* ignore */ } });
 
             // hotove osi maju vlastnu kopiu nastaveni - bez toho ostanu dlhe popisky
@@ -3100,7 +3125,12 @@ canvas#${MALY} { max-width:100% !important; }
 
             if (!chart.__pdaUpraveny) {
                 chart.__pdaUpraveny = true;
-                console.log(LOG, 'graf upravený:', canvas.id, '· riadkov:', riadkov(chart));
+                let typOsi = '?';
+                try { typOsi = chart.scales && chart.scales.x ? chart.scales.x.type : 'nie je'; } catch (e) { /* ignore */ }
+                const ukazka = Array.isArray(chart.data && chart.data.labels)
+                    ? chart.data.labels.slice(0, 3) : '(bez labels)';
+                console.log(LOG, 'graf upravený:', canvas.id, '· riadkov:', riadkov(chart),
+                            '· os X:', typOsi, '· popisky:', ukazka);
             }
             return true;
         }
@@ -3185,7 +3215,13 @@ canvas#${MALY} { max-width:100% !important; }
                     return;
                 }
                 const ch = instancia(C, canvas);
-                if (ch && !ch.__pdaUpraveny) upravChart(ch, canvas);
+                if (!ch) return;
+                if (!ch.__pdaUpraveny) {
+                    upravChart(ch, canvas);
+                } else if (skratPopisky(ch)) {
+                    // appka graf prekreslila s dlhymi popiskami - znovu ich skratime
+                    try { ch.update('none'); } catch (e) { /* ignore */ }
+                }
             });
         }
 
