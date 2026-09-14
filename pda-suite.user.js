@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.21.0
+// @version      1.21.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3823,27 +3823,38 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         const TRIEDA = 'pda-3d';
 
         /*
-         * Naklon + JEDEN tien. Verzia s "hrubkou" (retaz 20 drop-shadow filtrov
-         * na kazdom platne) vykreslovanie tak zatazila, ze mrzla cela aplikacia
-         * - kazdy tien sa pocita na vysledok predchadzajuceho, takze to bolo
-         * dvadsat prekresleni obrazku namiesto jedneho. Preto sa vratila prva,
-         * lacna verzia: naklon zboku, jeden tien pod kolacom a pri prechode
-         * mysou sa kolac pretoci do skutocneho tvaru.
-         * Prechod (transition) je len na `transform` - ten pocita graficka karta;
-         * animovanie `filter` by znovu znamenalo prekreslovanie kazdeho snimku.
+         * Vyska (bocna stena) kolaca - lacno.
+         *
+         * Stena je znovu z `drop-shadow`, ale uz len z TROCH po 4 px namiesto
+         * dvadsiatich po 1 px. Kazdy tien sa pocita na vysledok predchadzajuceho,
+         * takze 20 tienov = 20 prekresleni obrazka (to mrazilo aplikaciu),
+         * kym 3 x 4 px daju rovnako vysoku (12 px) a rovnako plnu stenu za tri.
+         * Stena je plna preto, ze posun 4 px je oproti hrubke prstenca maly,
+         * takze sa kopie prekryvaju.
+         *
+         * Druha - dolezitejsia - uspora: `filter` je v pokoji aj pod mysou
+         * ROVNAKY a meni sa len `transform`. Prehliadac si tak filtrovany obrazok
+         * odlozi a pri naklone uz len posuva hotovu tabulku (robi to graficka
+         * karta). Predtym sa pri prechode mysou menil aj filter, takze sa cely
+         * obrazok prefiltrovaval znovu v kazdom snimku.
          */
+        const STENA = 3;      // kolko tienov (pozor: kazdy dalsi stoji prekreslenie)
+        const KROK = 4;       // px na jeden tien -> vyska steny je STENA * KROK
+
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
+            const stena = new Array(STENA).fill('drop-shadow(0 ' + KROK + 'px 0 rgba(12,28,55,.40))').join(' ');
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
 .${TRIEDA} { transform:perspective(720px) rotateX(38deg) !important;
-  filter:drop-shadow(0 14px 10px rgba(16,36,63,.32)) !important;
+  filter:${stena} drop-shadow(0 12px 9px rgba(16,36,63,.28)) !important;
   transform-origin:50% 58% !important;
-  transition:transform .24s ease !important; }
-/* pri prechode mysou sa kolac pretoci do skutocneho tvaru */
+  transition:transform .24s ease !important;
+  will-change:transform !important; }
+/* pri prechode mysou sa kolac pretoci do skutocneho tvaru - filter ostava rovnaky */
 .${TRIEDA}:hover { transform:perspective(720px) rotateX(0deg) scale(1.06) !important; }
-/* aby naklonený kolac nebol orezany okrajom boxu */
+/* aby naklonený kolac ani jeho stena neboli orezane okrajom boxu */
 .pda-3d-box { overflow:visible !important; }
 `;
             document.head.appendChild(st);
