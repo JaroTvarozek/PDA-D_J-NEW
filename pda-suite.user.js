@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.20.4
+// @version      1.21.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2439,6 +2439,7 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 
         let missingLeftLogged = false;
         let poslednyPodpis = '';
+        let poslednyResize = 0;
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -2768,9 +2769,17 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
                 if (ch.parentElement !== ciel) { ciel.appendChild(ch); presunute = true; }
             });
 
-            // po presune ma graf novy ramec - Chart.js sa prepocita az po `resize`,
-            // inak by ostal neviditelny (vysoky 0 px)
-            if (presunute) setTimeout(() => W.dispatchEvent(new Event('resize')), 60);
+            /*
+             * Po presune ma graf novy ramec - Chart.js sa prepocita az po `resize`,
+             * inak by ostal neviditelny (vysoky 0 px). `resize` vsak rozhybe cely
+             * UI5, takze ho posielame najviac raz za sekundu; bez tejto poistky
+             * by sa pri kazdom prekresleni appky mohla rozbehnut spatna vazba
+             * (presun -> resize -> prekreslenie -> presun) a appka by zamrzla.
+             */
+            if (presunute && Date.now() - poslednyResize > 1000) {
+                poslednyResize = Date.now();
+                setTimeout(() => W.dispatchEvent(new Event('resize')), 60);
+            }
         }
 
         function apply() {
@@ -3814,27 +3823,27 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         const TRIEDA = 'pda-3d';
 
         /*
-         * Hrubka kolaca: `drop-shadow` sa nanasa na vysledok predchadzajuceho,
-         * takze niekolko tienov po 1 px pod sebou vytvori plnu bocnu stenu -
-         * kolac tak vyzera ako prstenec s vyskou, nie ako plocha nalepka.
-         * Tien kopiruje tvar obrazku, takze funguje aj na dieru v strede.
+         * Naklon + JEDEN tien. Verzia s "hrubkou" (retaz 20 drop-shadow filtrov
+         * na kazdom platne) vykreslovanie tak zatazila, ze mrzla cela aplikacia
+         * - kazdy tien sa pocita na vysledok predchadzajuceho, takze to bolo
+         * dvadsat prekresleni obrazku namiesto jedneho. Preto sa vratila prva,
+         * lacna verzia: naklon zboku, jeden tien pod kolacom a pri prechode
+         * mysou sa kolac pretoci do skutocneho tvaru.
+         * Prechod (transition) je len na `transform` - ten pocita graficka karta;
+         * animovanie `filter` by znovu znamenalo prekreslovanie kazdeho snimku.
          */
-        const HRUBKA = 20;    // px vysky kolaca
-
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
-            const stena = new Array(HRUBKA).fill('drop-shadow(0 1px 0 rgba(12,28,55,.42))').join(' ');
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-.${TRIEDA} { transform:perspective(720px) rotateX(40deg) !important;
-  filter:${stena} drop-shadow(0 14px 10px rgba(16,36,63,.30)) !important;
+.${TRIEDA} { transform:perspective(720px) rotateX(38deg) !important;
+  filter:drop-shadow(0 14px 10px rgba(16,36,63,.32)) !important;
   transform-origin:50% 58% !important;
-  transition:transform .28s ease, filter .28s ease !important; }
-/* pri prechode mysou sa kolac pretoci do skutocneho tvaru a stena zmizne */
-.${TRIEDA}:hover { transform:perspective(720px) rotateX(0deg) scale(1.07) !important;
-  filter:drop-shadow(0 8px 10px rgba(16,36,63,.26)) !important; }
-/* aby naklonený kolac ani jeho stena neboli orezane okrajom boxu */
+  transition:transform .24s ease !important; }
+/* pri prechode mysou sa kolac pretoci do skutocneho tvaru */
+.${TRIEDA}:hover { transform:perspective(720px) rotateX(0deg) scale(1.06) !important; }
+/* aby naklonený kolac nebol orezany okrajom boxu */
 .pda-3d-box { overflow:visible !important; }
 `;
             document.head.appendChild(st);
