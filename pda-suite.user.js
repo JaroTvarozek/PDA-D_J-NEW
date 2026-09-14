@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.19.0
+// @version      1.19.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2447,9 +2447,11 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 #${LIST_ID} { background:transparent !important; }
 /* kazdy zaznam = samostatna pilulka s plnym, jemnym ale viditelnym ramom;
    pozadie sa strieda (biela / svetlomodra), aby bolo vidiet, kde jedna konci */
+/* pilulka je siroka len tolko, kolko treba - vpravo uz neostava prazdny pas */
 #${LIST_ID} .sapMLIB.pda-pill-on { min-height:0 !important; height:auto !important; padding:0 !important;
   margin:4px 3px !important; border:1px solid #c3cfe0 !important; border-radius:10px !important;
-  background:#fff !important; overflow:hidden; transition:border-color .12s, box-shadow .12s; }
+  background:#fff !important; overflow:hidden; transition:border-color .12s, box-shadow .12s;
+  width:max-content !important; max-width:calc(100% - 10px) !important; }
 #${LIST_ID} .sapMLIB.pda-pill-on:nth-child(even) { background:#eef3fa !important; }
 #${LIST_ID} .sapMLIB.pda-pill-on:hover { border-color:#7ba4ee !important; box-shadow:0 3px 10px rgba(16,36,63,.12) !important; }
 /* vybrana zakazka: tmavomodra na bielo - nedá sa zamenit so striedavym podfarbenim */
