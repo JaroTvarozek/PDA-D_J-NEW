@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.19.1
+// @version      1.19.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -566,7 +566,10 @@
   padding:11px 16px !important; border-radius:12px !important; box-shadow:none !important;
   display:flex !important; align-items:center !important; justify-content:center !important;
   box-sizing:border-box !important; }
-.statusBtn .sapMBtnContent, .statusBtn bdi { line-height:1.25 !important; white-space:normal !important; }
+/* sirka podla textu - nazov sa uz nezalomi ("Stretnuti / a", "Prestavk / a") */
+.statusBtn { width:auto !important; min-width:130px !important; max-width:none !important; }
+.statusBtn .sapMBtnContent, .statusBtn bdi { line-height:1.25 !important; white-space:nowrap !important;
+  overflow:visible !important; text-overflow:clip !important; }
 .statusBtn:hover { transform:translateY(-3px) !important;
   box-shadow:0 10px 20px rgba(16,36,63,.30) !important; }
 .statusBtn:active { transform:translateY(-1px) !important;
