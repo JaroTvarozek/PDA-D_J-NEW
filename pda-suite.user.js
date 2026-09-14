@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.13.0
+// @version      1.13.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2388,6 +2388,7 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         const BOTTOM_GAP = 18;        // medzera pod lavym stlpcom
 
         let missingLeftLogged = false;
+        let poslednyPodpis = '';
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -2398,40 +2399,111 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
   padding:8px !important; box-sizing:border-box; }
 #${SCROLL_ID} { border:0 !important; background:transparent !important; }
 #${LIST_ID} { background:transparent !important; }
+/* kazdy zaznam = samostatna pilulka s plnym, jemnym ale viditelnym ramom;
+   pozadie sa strieda (biela / svetlomodra), aby bolo vidiet, kde jedna konci */
 #${LIST_ID} .sapMLIB.pda-pill-on { min-height:0 !important; height:auto !important; padding:0 !important;
-  margin:5px 4px !important; border:1px solid #dfe4ec !important; border-radius:12px !important;
+  margin:4px 3px !important; border:1px solid #c3cfe0 !important; border-radius:10px !important;
   background:#fff !important; overflow:hidden; transition:border-color .12s, box-shadow .12s; }
-#${LIST_ID} .sapMLIB.pda-pill-on:hover { border-color:#93b4f5 !important; box-shadow:0 4px 12px rgba(16,36,63,.10) !important; }
-#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected { border:2px solid #2563eb !important; background:#eef4ff !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on:nth-child(even) { background:#eef3fa !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on:hover { border-color:#7ba4ee !important; box-shadow:0 3px 10px rgba(16,36,63,.12) !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected,
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected:nth-child(even) { border:2px solid #2563eb !important;
+  background:#e3edfe !important; }
 #${LIST_ID} .sapMLIB.pda-pill-on > *:not([data-pda-pill]) { display:none !important; }
-.pda-pill { padding:7px 10px; font:13px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif; color:#1a2233; }
+.pda-pill { padding:5px 9px; font:12px/1.25 -apple-system,"Segoe UI",Roboto,sans-serif; color:#1a2233; }
 .pda-pill.run { box-shadow: inset 4px 0 0 #2e9e4f; }
-.pda-pill .r1 { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; overflow:hidden; }
-.pda-pill .r2 { display:flex; align-items:baseline; gap:6px; margin-top:3px; overflow:hidden; white-space:nowrap; }
-.pda-pill .t { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
-  white-space:nowrap; letter-spacing:.01em; }
+.pda-pill .r1 { display:flex; align-items:center; gap:5px; flex-wrap:nowrap; overflow:hidden; }
+.pda-pill .r2 { display:flex; align-items:baseline; gap:5px; margin-top:2px; overflow:hidden; white-space:nowrap; }
+.pda-pill .t { display:inline-block; padding:1px 7px; border-radius:999px; font-size:11.5px; font-weight:700;
+  white-space:nowrap; letter-spacing:0; line-height:1.35; }
 .pda-pill .t-zak { background:#13315c; color:#fff; }
-.pda-pill .t-op { background:#e8f0fe; color:#1b4f9c; border:1px solid #c3d8f7; }
+.pda-pill .t-op { background:#dfeafc; color:#1b4f9c; border:1px solid #b9cdee; }
 .pda-pill .t-run { background:#e7f6ec; color:#1d7a3c; border:1px solid #b6e2c5; margin-left:auto; }
-.pda-pill .mat { font-size:12px; font-weight:700; color:#0f172a; white-space:nowrap; }
-.pda-pill .matn { font-size:12px; color:#4a5568; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
-.pda-pill .opd { font-size:11px; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  flex:0 1 auto; max-width:45%; }
+.pda-pill .mat { font-size:11.5px; font-weight:700; color:#0f172a; white-space:nowrap; }
+.pda-pill .matn { font-size:11.5px; color:#4a5568; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
+.pda-pill .opd { font-size:10.5px; color:#8e9bb0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  flex:0 1 auto; max-width:42%; }
 `;
             document.head.appendChild(st);
         }
 
-        // udaje polozky z modelu appky; null = polozka bez dat (nechame ju tak)
+        /*
+         * Udaje polozky. Najprv z modelu appky - pozor, zoznam moze byt naviazany
+         * na POMENOVANY model, vtedy getBindingContext() bez mena vrati nic,
+         * preto sa prejdu vsetky kontexty polozky (c.oBindingContexts).
+         * Ked sa model neda precitat (v1.13.0 sa to tak aj stalo), pilulka sa
+         * poskladá z textu, ktory appka do polozky napisala - tvar tych styroch
+         * riadkov je pevny, takze sa to da bezpecne rozobrat.
+         */
         function itemData(li) {
+            const c = resolveControl(li);
+            if (c) {
+                const o = zKontextu(c);
+                if (o) return o;
+            }
+            return zTextu(li);
+        }
+
+        function pouzitelne(o) {
+            return o && (o.productionOrderNo || o.salesOrderNo || o.materialNo) ? o : null;
+        }
+
+        function zKontextu(c) {
             try {
-                const c = resolveControl(li);
-                if (c && typeof c.getBindingContext === 'function') {
+                if (typeof c.getBindingContext === 'function') {
                     const ctx = c.getBindingContext();
                     const o = ctx && typeof ctx.getObject === 'function' ? ctx.getObject() : null;
-                    if (o && (o.productionOrderNo || o.salesOrderNo)) return o;
+                    if (pouzitelne(o)) return o;
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                const mapa = c.oBindingContexts || {};
+                for (const meno in mapa) {
+                    const ctx = mapa[meno];
+                    const o = ctx && typeof ctx.getObject === 'function' ? ctx.getObject() : null;
+                    if (pouzitelne(o)) return o;
                 }
             } catch (e) { /* ignore */ }
             return null;
+        }
+
+        // texty, ktore appka do polozky napisala (aj ked su uz skryte nasou pilulkou)
+        const TEXT_SEL = '.sapMText, .sapMLabel, .sapMTitle, .sapMObjectIdentifierTitle,' +
+                         '.sapMObjectIdentifierText, .sapMSLITitleOnly, .sapMSLIDescription';
+
+        function riadkyTextu(li) {
+            const out = [];
+            li.querySelectorAll(TEXT_SEL).forEach((el) => {
+                if (el.closest('[data-pda-pill]')) return;   // nase vlastne texty nie
+                if (el.querySelector(TEXT_SEL)) return;      // len listy stromu
+                const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (t && t !== '-' && out.indexOf(t) === -1) out.push(t);
+            });
+            return out;
+        }
+
+        /*
+         * Tvar riadkov v polozke (overene na pracovisku 4836):
+         *   7006003722 - 000010                        zakaznicka zakazka - polozka
+         *   001600108392 - 0700 - 000000               vyrobna zakazka - operacia - sekvencia
+         *   25288306 - S-PLATE CHARG.DOOR IM250E …     material - nazov
+         *   WFT11CNC-B Horizontka 110 2 UP             popis operacie
+         */
+        function zTextu(li) {
+            const d = {};
+            riadkyTextu(li).forEach((t) => {
+                let m;
+                if ((m = t.match(/^(\d{6,12})\s*-\s*(\d{3,6})\s*-\s*(\d{3,6})$/))) {
+                    d.productionOrderNo = m[1]; d.operationNo = m[2]; d.sequenceNo = m[3];
+                } else if ((m = t.match(/^(\d{6,12})\s*-\s*(\d{3,6})$/))) {
+                    d.salesOrderNo = m[1]; d.salesOrderItem = m[2];
+                } else if ((m = t.match(/^(\d{6,10})\s*-\s*(\S.*)$/))) {
+                    d.materialNo = m[1]; d.material = m[2];
+                } else if (!d.description) {
+                    d.description = t;
+                }
+            });
+            return pouzitelne(d);
         }
 
         function txt(v) {
@@ -2509,9 +2581,13 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             if (!list) return;
             injectStyles();
 
-            list.querySelectorAll('.sapMLIB').forEach((li) => {
+            const polozky = list.querySelectorAll('.sapMLIB');
+            let hotovych = 0;
+
+            polozky.forEach((li) => {
                 const d = itemData(li);
                 if (!d) return;
+                hotovych++;
                 const key = [d.salesOrderNo, d.salesOrderItem, d.productionOrderNo, d.operationNo,
                              d.sequenceNo, d.materialNo, d.count].join('|');
                 if (li.dataset.pdaPillKey === key && li.querySelector('[data-pda-pill]')) return;
@@ -2522,6 +2598,13 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
                 li.dataset.pdaPillKey = key;
                 li.classList.add('pda-pill-on');
             });
+
+            // aby bolo v konzole hned vidiet, ci sa udaje polozky daju precitat
+            const podpis = hotovych + '/' + polozky.length;
+            if (polozky.length && podpis !== poslednyPodpis) {
+                poslednyPodpis = podpis;
+                console.log(LOG, 'pilulky v pracovnom zozname:', podpis);
+            }
 
             fitHeight();
         }
