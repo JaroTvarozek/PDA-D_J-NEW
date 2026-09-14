@@ -4,8 +4,8 @@
 // @version      1.0.0
 // @description  Side panel for fast login
 // @author       Gabris
-// @updateURL    https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/users-panel.user.js
-// @downloadURL  https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/users-panel.user.js
+// @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/stare-skripty/users-panel.user.js
+// @downloadURL  https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/stare-skripty/users-panel.user.js
 // @match        https://hf.simplifier.cloud/appDirect/PDA/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=simplifier.cloud
 // @grant        none

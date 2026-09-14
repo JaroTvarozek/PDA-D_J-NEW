@@ -4,8 +4,8 @@
 // @version      0.0.7
 // @description  Nacita Excel s vykresmi zo sietoveho disku, sleduje aktualne otvorenu operaciu a zobrazuje cislo vykresu + verziu v tlacidle
 // @author       Gabris
-// @updateURL    https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/order-drawing-button.user.js
-// @downloadURL  https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/order-drawing-button.user.js
+// @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/stare-skripty/order-drawing-button.user.js
+// @downloadURL  https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/stare-skripty/order-drawing-button.user.js
 // @match        https://hf.simplifier.cloud/appDirect/PDA/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=simplifier.cloud
 // @run-at       document-start

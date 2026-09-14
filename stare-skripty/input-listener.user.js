@@ -4,8 +4,8 @@
 // @version      0.0.1
 // @description  Invisible listener for user input
 // @author       Gabris
-// @updateURL    https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/input-listener.user.js
-// @downloadURL  https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/input-listener.user.js
+// @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/stare-skripty/input-listener.user.js
+// @downloadURL  https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/stare-skripty/input-listener.user.js
 // @match        https://hf.simplifier.cloud/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=simplifier.cloud
 // @run-at       document-start

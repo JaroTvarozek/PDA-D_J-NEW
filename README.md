@@ -10,7 +10,7 @@ pracoviskami, načítanie výkresov, obsluhu skenera a čítačky kariet.
 
 ## Inštalácia — stačí jeden skript
 
-**[▶ Inštalovať PDA Suite](https://github.com/JaroTvarozek/HF-PDA-scripts/raw/refs/heads/main/pda-suite.user.js)**
+**[▶ Inštalovať PDA Suite](https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js)**
 
 `pda-suite.user.js` obsahuje **všetkých 8 modulov v jednom súbore**. Nainštaluješ
 ho raz a jednotlivé moduly si potom zapínaš a vypínaš v nastaveniach — nemusíš
@@ -90,8 +90,8 @@ ostatné bežia ďalej — spúšťajú sa každý vo vlastnom `try/catch`.
 
 ## Staršie samostatné skripty
 
-Pôvodných 8 samostatných skriptov v koreni repozitára (`enhanced-header.user.js`
-a spol.) tu zostáva pre prípad, že ich má niekto ešte nainštalované. **Pre nové
+Pôvodných 8 samostatných skriptov je v priečinku `stare-skripty/` (`enhanced-header.user.js`
+a spol.) a zostáva tu pre prípad, že ich má niekto ešte nainštalované. **Pre nové
 inštalácie použi `pda-suite.user.js`.**
 
 Ak prechádzaš zo starých skriptov: nainštaluj suite a staré v Tampermonkey
