@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.18.2
+// @version      1.18.3
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -557,7 +557,7 @@
 #${CONTAINER_ID} { align-content:flex-start !important; align-items:stretch !important; row-gap:0 !important; }
 #${CONTAINER_ID} .statusBtn { height:auto !important; min-height:0 !important; margin:4px !important;
   align-self:stretch !important; border-radius:12px !important;
-  border:1px solid rgba(255,255,255,.4) !important;
+  border:2px solid #13315c !important;
   box-shadow:0 2px 6px rgba(16,36,63,.20) !important;
   transition:transform .13s ease, box-shadow .13s ease !important; }
 #${CONTAINER_ID} .statusBtn .sapMBtnInner { height:100% !important; width:100% !important; min-height:0 !important;
