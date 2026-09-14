@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.19.2
+// @version      1.20.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3678,18 +3678,28 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         const STYLE_ID = '__pda_donut3d_styles__';
         const TRIEDA = 'pda-3d';
 
+        /*
+         * Hrubka kolaca: `drop-shadow` sa nanasa na vysledok predchadzajuceho,
+         * takze niekolko tienov po 1 px pod sebou vytvori plnu bocnu stenu -
+         * kolac tak vyzera ako prstenec s vyskou, nie ako plocha nalepka.
+         * Tien kopiruje tvar obrazku, takze funguje aj na dieru v strede.
+         */
+        const HRUBKA = 10;    // px vysky kolaca
+
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
+            const stena = new Array(HRUBKA).fill('drop-shadow(0 1px 0 rgba(12,28,55,.42))').join(' ');
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-.${TRIEDA} { transform:perspective(720px) rotateX(38deg) !important;
-  filter:drop-shadow(0 16px 12px rgba(16,36,63,.34)) !important;
-  transform-origin:50% 60% !important;
-  transition:transform .22s ease, filter .22s ease !important; }
-.${TRIEDA}:hover { transform:perspective(720px) rotateX(18deg) scale(1.06) !important;
-  filter:drop-shadow(0 10px 8px rgba(16,36,63,.28)) !important; }
-/* aby naklonený kolac nebol orezany okrajom boxu */
+.${TRIEDA} { transform:perspective(720px) rotateX(40deg) !important;
+  filter:${stena} drop-shadow(0 14px 10px rgba(16,36,63,.30)) !important;
+  transform-origin:50% 58% !important;
+  transition:transform .28s ease, filter .28s ease !important; }
+/* pri prechode mysou sa kolac pretoci do skutocneho tvaru a stena zmizne */
+.${TRIEDA}:hover { transform:perspective(720px) rotateX(0deg) scale(1.07) !important;
+  filter:drop-shadow(0 8px 10px rgba(16,36,63,.26)) !important; }
+/* aby naklonený kolac ani jeho stena neboli orezane okrajom boxu */
 .pda-3d-box { overflow:visible !important; }
 `;
             document.head.appendChild(st);
