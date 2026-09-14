@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.21.1
+// @version      1.21.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -574,6 +574,13 @@
   box-shadow:0 10px 20px rgba(16,36,63,.30) !important; }
 .statusBtn:active { transform:translateY(-1px) !important;
   box-shadow:0 3px 8px rgba(16,36,63,.24) !important; }
+/* panel "Osobny stav" na uvodnej obrazovke bol vysoky na pol obrazovky,
+   hoci v nom su len tri tlacidla - zmensime jeho vnutorne odsadenie */
+.pda-panel-tesny, .pda-panel-tesny .sapMPanelContent { min-height:0 !important; height:auto !important; }
+.pda-panel-tesny .sapMPanelContent { padding-top:2px !important; padding-bottom:6px !important; }
+.pda-panel-tesny .sapMPanelHdr, .pda-panel-tesny .sapMPanelHeaderTB {
+  min-height:0 !important; padding-top:2px !important; padding-bottom:0 !important; }
+.pda-panel-tesny .sapMFlexBox { min-height:0 !important; }
 `;
             document.head.appendChild(st);
         }
@@ -621,6 +628,12 @@
             document.querySelectorAll('.statusBtn').forEach((b) => {
                 const p = b.parentElement;
                 if (p && !p.classList.contains('pda-status-row')) p.classList.add('pda-status-row');
+
+                // panel osobneho stavu (uvodna obrazovka) je zbytocne vysoky;
+                // panelov v detaile pracoviska sa nedotykame
+                if (b.closest('[id^="WorkcenterDetail--"]')) return;
+                const panel = b.closest('.sapMPanel');
+                if (panel && !panel.classList.contains('pda-panel-tesny')) panel.classList.add('pda-panel-tesny');
             });
             document.querySelectorAll('.sapMBtn').forEach((btn) => {
                 if (btn.closest(OWN_UI)) return;
