@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.20.2
+// @version      1.20.3
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3669,15 +3669,36 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 
             /*
              * Pilulka POPIS bola siroka na celu plochu a podliezala pravy stlpec
-             * (Components / BOM, Parallel Process Handling) - prekryvali sa.
-             * Jej pravy okraj zarovname s poslednym stavovym tlacidlom.
+             * (Components / BOM, Parallel Process Handling). Stavove tlacidla
+             * siahaju az popod ten stlpec (len su vyssie, takze sa nebiju), preto
+             * nestaci zarovnat podla nich - hlada sa aj lavy okraj praveho stlpca
+             * a berie sa to, co je viac vlavo.
              */
-            const tlacidla = stav ? stav.querySelectorAll('.statusBtn') : null;
-            const posledne = tlacidla && tlacidla.length ? tlacidla[tlacidla.length - 1] : null;
-            if (!posledne) return;
             const r = opis.getBoundingClientRect();
-            const sirka = Math.round(posledne.getBoundingClientRect().right - r.left);
+            let koniec = Infinity;
+
+            const tlacidla = stav ? stav.querySelectorAll('.statusBtn') : null;
+            if (tlacidla && tlacidla.length) {
+                koniec = tlacidla[tlacidla.length - 1].getBoundingClientRect().right;
+            }
+            const stlpec = lavyOkrajPravehoStlpca(r.left);
+            if (stlpec) koniec = Math.min(koniec, stlpec - 14);
+
+            if (!isFinite(koniec)) return;
+            const sirka = Math.round(koniec - r.left);
             if (sirka > 200 && Math.abs(sirka - r.width) > 2) opis.style.maxWidth = sirka + 'px';
+        }
+
+        // lavy okraj praveho stlpca detailu (Components / BOM, Parallel Process Handling)
+        function lavyOkrajPravehoStlpca(odX) {
+            let x = Infinity;
+            document.querySelectorAll('.sapMBtn, .sapMTitle, .sapMPanel').forEach((el) => {
+                const t = (el.textContent || '').trim();
+                if (!/^components\b|parallel process/i.test(t)) return;
+                const er = el.getBoundingClientRect();
+                if (er.width && er.left > odX + 150) x = Math.min(x, er.left);
+            });
+            return isFinite(x) ? x : null;
         }
 
         /*
@@ -3770,7 +3791,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
          * kolac tak vyzera ako prstenec s vyskou, nie ako plocha nalepka.
          * Tien kopiruje tvar obrazku, takze funguje aj na dieru v strede.
          */
-        const HRUBKA = 10;    // px vysky kolaca
+        const HRUBKA = 20;    // px vysky kolaca
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
