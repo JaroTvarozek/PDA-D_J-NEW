@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.13.2
+// @version      1.14.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2874,7 +2874,198 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         onReady(apply);
     }
 
-    /* -------------------- 3.11 Ladiaci vypis ---------------------------- */
+    /* ------------- 3.11 Krajsi graf vytazenia (Resource over time) ------------- */
+
+    /*
+     * Graf pod pracovnym zoznamom kresli appka cez Chart.js 4.4.2 do platna
+     * `ResourceDetails` (zoom v dialogu do `DialogChart`) - zistene zo zdrojakov
+     * appky: PDA_Chart.displayTimelineChart s elementId "ResourceDetails".
+     *
+     * Modul graf NEKRESLI odznova - iba prestavi hotovu instanciu, takze udaje
+     * ostavaju presne tie, ktore poslala appka:
+     *   - popisky casu len ako HH:MM (namiesto "2026-09-14 07:00:00" nakoso)
+     *   - pasy zaoblene a tensie (povodne zabrali skoro celu vysku)
+     *   - platno nizsie -> pod zoznamom zakaziek sa uvolni miesto
+     *   - jemnejsia mriezka, svetlejsie popisky
+     *
+     * Ked by sa ku kniznici Chart nedalo dostat, modul aspon znizi platno cez
+     * CSS - Chart.js je v responsive rezime a prekresli sa sam.
+     */
+    function modChartStyle() {
+        const CANVAS_IDS = ['ResourceDetails', 'DialogChart'];
+        const STYLE_ID = '__pda_chart_styles__';
+        const RIADOK = 34;      // vyska jedneho pasu aj s medzerou
+        const OKRAJE = 46;      // miesto na popisky casu a odsadenie
+        const MIN_V = 110;
+        const MAX_V = 280;
+
+        let chybaKnizniceLogged = false;
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+#WorkcenterDetail--ChartFlexBox { padding-top:2px !important; }
+canvas#ResourceDetails { max-width:100% !important; }
+`;
+            document.head.appendChild(st);
+        }
+
+        function kniznica() {
+            const C = W.Chart;
+            if (C && (typeof C.getChart === 'function' || C.instances)) return C;
+            if (!chybaKnizniceLogged) {
+                chybaKnizniceLogged = true;
+                console.log(LOG, 'Chart.js sa nenašiel, graf len zmenším cez CSS');
+            }
+            return null;
+        }
+
+        function instancia(C, canvas) {
+            try {
+                if (typeof C.getChart === 'function') {
+                    const ch = C.getChart(canvas);
+                    if (ch) return ch;
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                const zoznam = C.instances || {};
+                for (const k in zoznam) {
+                    if (zoznam[k] && zoznam[k].canvas === canvas) return zoznam[k];
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function dve(n) {
+            return (n < 10 ? '0' : '') + n;
+        }
+
+        /*
+         * Z hocijakeho tvaru casu spravi "07:00". Popisok moze prist ako cislo
+         * (timestamp), Date alebo text "2026-09-14 07:00:00" - preto tri cesty.
+         */
+        function hhmm(v) {
+            if (v === null || v === undefined) return v;
+            if (v instanceof Date) return dve(v.getHours()) + ':' + dve(v.getMinutes());
+            if (typeof v === 'number') {
+                const d = new Date(v);
+                return isNaN(d.getTime()) ? v : dve(d.getHours()) + ':' + dve(d.getMinutes());
+            }
+            const s = String(v);
+            const m = s.match(/(\d{1,2}):(\d{2})/);
+            return m ? dve(Number(m[1])) + ':' + m[2] : s;
+        }
+
+        function vyskaGrafu(chart) {
+            let riadkov = 1;
+            try {
+                const l = chart.data && chart.data.labels;
+                if (l && l.length) riadkov = l.length;
+            } catch (e) { /* ignore */ }
+            return Math.min(MAX_V, Math.max(MIN_V, riadkov * RIADOK + OKRAJE));
+        }
+
+        function upravChart(chart, canvas) {
+            if (!chart || chart.__pdaUpraveny) return false;
+            chart.__pdaUpraveny = true;
+
+            const o = chart.options = chart.options || {};
+            o.maintainAspectRatio = false;
+            o.responsive = true;
+            o.animation = false;
+
+            // --- pasy: zaoblene a tenke ---
+            (chart.data && chart.data.datasets ? chart.data.datasets : []).forEach((ds) => {
+                ds.borderRadius = 6;
+                ds.borderSkipped = false;
+                ds.barThickness = 22;
+                ds.maxBarThickness = 26;
+                ds.borderWidth = 0;
+            });
+
+            // --- os casu: len HH:MM, vodorovne, jemna mriezka ---
+            const sc = o.scales = o.scales || {};
+            const x = sc.x = sc.x || {};
+            x.ticks = Object.assign({}, x.ticks, {
+                maxRotation: 0,
+                minRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 10,
+                color: '#8e9bb0',
+                font: { size: 11 },
+                callback(value) {
+                    let raw = value;
+                    try {
+                        if (typeof this.getLabelForValue === 'function') raw = this.getLabelForValue(value);
+                    } catch (e) { /* ignore */ }
+                    return hhmm(raw);
+                },
+            });
+            x.grid = Object.assign({}, x.grid, { color: 'rgba(120,140,170,.14)', drawBorder: false, tickLength: 4 });
+            if (x.time) x.time.displayFormats = Object.assign({}, x.time.displayFormats, {
+                millisecond: 'HH:mm', second: 'HH:mm', minute: 'HH:mm', hour: 'HH:mm', day: 'HH:mm',
+            });
+
+            const y = sc.y = sc.y || {};
+            y.ticks = Object.assign({}, y.ticks, { color: '#5b6b83', font: { size: 11.5, weight: '600' } });
+            y.grid = Object.assign({}, y.grid, { display: false, drawBorder: false });
+
+            // --- bublina pri nabehnuti: cas tiez len HH:MM ---
+            o.plugins = o.plugins || {};
+            o.plugins.tooltip = Object.assign({}, o.plugins.tooltip, {
+                backgroundColor: 'rgba(19,49,92,.94)',
+                titleFont: { size: 12.5 },
+                bodyFont: { size: 12.5 },
+                padding: 9,
+                cornerRadius: 8,
+                displayColors: true,
+            });
+            if (o.plugins.legend) {
+                o.plugins.legend.labels = Object.assign({}, o.plugins.legend.labels, {
+                    boxWidth: 12, boxHeight: 12, usePointStyle: true, color: '#5b6b83', font: { size: 11.5 },
+                });
+            }
+
+            // --- nizsie platno -> viac miesta na zoznam zakaziek ---
+            const wrap = canvas.parentElement;
+            if (wrap) {
+                wrap.style.position = wrap.style.position || 'relative';
+                wrap.style.height = vyskaGrafu(chart) + 'px';
+            }
+
+            try { chart.resize(); } catch (e) { /* ignore */ }
+            try { chart.update('none'); } catch (e) { try { chart.update(); } catch (e2) { /* ignore */ } }
+            console.log(LOG, 'graf upravený:', canvas.id);
+            return true;
+        }
+
+        function apply() {
+            injectStyles();
+            const C = kniznica();
+            CANVAS_IDS.forEach((id) => {
+                const canvas = document.getElementById(id);
+                if (!canvas) return;
+                if (!C) {
+                    // zaloha bez kniznice: aspon nizsie platno, Chart.js sa prekresli sam
+                    const wrap = canvas.parentElement;
+                    if (wrap && id === 'ResourceDetails' && wrap.style.height !== MIN_V + 'px') {
+                        wrap.style.height = MIN_V + 'px';
+                    }
+                    return;
+                }
+                upravChart(instancia(C, canvas), canvas);
+            });
+        }
+
+        DomWatch.add(apply);
+        // graf vznika az po odpovedi zo servera, preto este pomaly tik
+        setInterval(apply, 1200);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.12 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -2963,6 +3154,13 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             desc: 'Namiesto drobného textu veľké tlačidlo „Popis operácie“; po kliknutí sa popis ukáže cez celú obrazovku vo veľkom písme (zavrie sa klikom vedľa alebo Esc).',
             def: true,
             run: modOperationDescription,
+        },
+        {
+            id: 'chartStyle',
+            name: 'Krajší graf vyťaženia',
+            desc: 'Graf pod pracovným zoznamom: čas dole len ako HH:MM, zaoblené a tenšie pásy, nižšie plátno (uvoľní miesto zoznamu). Údaje sa nemenia, len vzhľad.',
+            def: true,
+            run: modChartStyle,
         },
         {
             id: 'debug',
