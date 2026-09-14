@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.14.0
+// @version      1.15.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2894,10 +2894,10 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
     function modChartStyle() {
         const CANVAS_IDS = ['ResourceDetails', 'DialogChart'];
         const STYLE_ID = '__pda_chart_styles__';
-        const RIADOK = 34;      // vyska jedneho pasu aj s medzerou
-        const OKRAJE = 46;      // miesto na popisky casu a odsadenie
-        const MIN_V = 110;
-        const MAX_V = 280;
+        const RIADOK = 30;      // vyska jedneho pasu aj s medzerou
+        const OKRAJE = 30;      // miesto na popisky casu a odsadenie
+        const MIN_V = 84;
+        const MAX_V = 220;
 
         let chybaKnizniceLogged = false;
 
@@ -2906,8 +2906,14 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-#WorkcenterDetail--ChartFlexBox { padding-top:2px !important; }
+#WorkcenterDetail--ChartFlexBox { padding-top:0 !important; margin-top:0 !important; }
 canvas#ResourceDetails { max-width:100% !important; }
+/* nadpis "Resource over time" zabral dva riadky - staci jemny jednoriadkovy popisok */
+.pda-chart-nadpis { font-size:11px !important; font-weight:700 !important; letter-spacing:.1em !important;
+  text-transform:uppercase !important; color:#8e9bb0 !important; white-space:nowrap !important;
+  line-height:1.2 !important; margin:0 !important; padding:0 !important; }
+.pda-chart-nadpis .sapMTitleInner, .pda-chart-nadpis bdi, .pda-chart-nadpis span { font-size:11px !important;
+  font-weight:700 !important; color:#8e9bb0 !important; white-space:nowrap !important; }
 `;
             document.head.appendChild(st);
         }
@@ -3012,8 +3018,13 @@ canvas#ResourceDetails { max-width:100% !important; }
             y.ticks = Object.assign({}, y.ticks, { color: '#5b6b83', font: { size: 11.5, weight: '600' } });
             y.grid = Object.assign({}, y.grid, { display: false, drawBorder: false });
 
-            // --- bublina pri nabehnuti: cas tiez len HH:MM ---
+            // --- nadpis v grafe ("Workcenter reports from last 24h: …") je zbytocny ---
             o.plugins = o.plugins || {};
+            o.plugins.title = Object.assign({}, o.plugins.title, { display: false });
+            o.plugins.subtitle = Object.assign({}, o.plugins.subtitle, { display: false });
+            o.layout = Object.assign({}, o.layout, { padding: { top: 2, right: 6, bottom: 0, left: 2 } });
+
+            // --- bublina pri nabehnuti: cas tiez len HH:MM ---
             o.plugins.tooltip = Object.assign({}, o.plugins.tooltip, {
                 backgroundColor: 'rgba(19,49,92,.94)',
                 titleFont: { size: 12.5 },
@@ -3041,8 +3052,22 @@ canvas#ResourceDetails { max-width:100% !important; }
             return true;
         }
 
+        // dvojriadkovy nadpis nad grafom stlacime na jeden jemny riadok
+        function zmensiNadpis() {
+            const left = document.getElementById('WorkcenterDetail--LeftColumn_FlexBox');
+            if (!left) return;
+            left.querySelectorAll('.sapMTitle, .sapMLabel, .sapMText').forEach((el) => {
+                if (el.classList.contains('pda-chart-nadpis')) return;
+                const t = (el.textContent || '').trim().toLowerCase();
+                if (t === 'resource over time' || t === 'zdroj v čase' || t === 'ressource über zeit') {
+                    el.classList.add('pda-chart-nadpis');
+                }
+            });
+        }
+
         function apply() {
             injectStyles();
+            zmensiNadpis();
             const C = kniznica();
             CANVAS_IDS.forEach((id) => {
                 const canvas = document.getElementById(id);
@@ -3065,7 +3090,139 @@ canvas#ResourceDetails { max-width:100% !important; }
         onReady(apply);
     }
 
-    /* -------------------- 3.12 Ladiaci vypis ---------------------------- */
+    /* ------------- 3.12 Krajsia tabulka stavov (mriezka pri grafe) ------------- */
+
+    /*
+     * Tlacidlo s mriezkou pri grafe (WorkcenterDetail--Status_Overview_Button)
+     * otvara dialog `Popups--TableSelectDialog_Overview` - holu SAP tabulku
+     * so zaznamami stavov. Modul ju nechava tak, ako je (data aj klikanie),
+     * len ju prekresli:
+     *   - dialog siroky, zaobleny, tmavomodra hlavicka
+     *   - datum a cas namiesto "2026-09-14 07:00:00" ako "14.09." + "07:00"
+     *   - stav ako farebna pilulka podla tych istych pravidiel, ako maju
+     *     stavove tlacidla (nastavenia -> Tlacidla - farby)
+     *   - riadky vyssie, striedavo podfarbene, bez tvrdych ciar
+     *
+     * Povodny text bunky sa pamata v `data-pda-orig`, takze po prekresleni
+     * tabulky sa prevod spravi znova a nic sa nestrati.
+     */
+    function modStatusTable() {
+        const DIALOG_SEL = '[id^="Popups--TableSelectDialog_Overview"]';
+        const STYLE_ID = '__pda_stable_styles__';
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+${DIALOG_SEL}.sapMDialog { border-radius:16px !important; overflow:hidden !important;
+  width:min(1100px,94vw) !important; max-width:94vw !important; max-height:86vh !important;
+  box-shadow:0 24px 70px rgba(16,36,63,.38) !important; }
+${DIALOG_SEL} .sapMDialogTitle, ${DIALOG_SEL} .sapMIBar.sapMHeader-CTX, ${DIALOG_SEL} .sapMDialogTitleGroup {
+  background:#13315c !important; color:#fff !important; }
+${DIALOG_SEL} .sapMDialogTitle .sapMTitle, ${DIALOG_SEL} .sapMIBar.sapMHeader-CTX .sapMTitle {
+  color:#fff !important; font-size:15px !important; font-weight:800 !important; letter-spacing:.06em; }
+${DIALOG_SEL} .sapMListTblHeader { background:#f3f6fb !important; }
+${DIALOG_SEL} .sapMListTblHeaderCell, ${DIALOG_SEL} .sapMListTblHeaderCell .sapMLabel {
+  font-size:11px !important; font-weight:800 !important; letter-spacing:.08em !important;
+  text-transform:uppercase !important; color:#6b7c95 !important; }
+${DIALOG_SEL} .sapMListTbl, ${DIALOG_SEL} .sapMList { background:#fff !important; }
+${DIALOG_SEL} .sapMListTblRow { border-bottom:1px solid #eef2f7 !important; }
+${DIALOG_SEL} .sapMListTblRow:nth-child(even) { background:#f7f9fd !important; }
+${DIALOG_SEL} .sapMListTblRow:hover { background:#eaf1fc !important; }
+${DIALOG_SEL} .sapMListTblCell { padding-top:9px !important; padding-bottom:9px !important;
+  font-size:13px !important; color:#1a2233 !important; vertical-align:middle !important; }
+${DIALOG_SEL} .sapMListTblRow.sapMLIBSelected { background:#13315c !important; }
+${DIALOG_SEL} .sapMListTblRow.sapMLIBSelected .sapMListTblCell,
+${DIALOG_SEL} .sapMListTblRow.sapMLIBSelected .sapMText { color:#fff !important; }
+${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
+/* datum a cas */
+.pda-cas { display:inline-flex; align-items:baseline; gap:6px; white-space:nowrap; }
+.pda-cas .d { font-size:11px; color:#8e9bb0; }
+.pda-cas .c { font-size:13.5px; font-weight:700; color:#13315c; }
+.sapMLIBSelected .pda-cas .d { color:#b9cbe8; }
+.sapMLIBSelected .pda-cas .c { color:#fff; }
+/* stav ako pilulka */
+.pda-stav { display:inline-block; padding:3px 11px; border-radius:999px; font-size:12px; font-weight:700;
+  line-height:1.4; white-space:nowrap; background:#eef2f7; color:#41506a; }
+`;
+            document.head.appendChild(st);
+        }
+
+        // rovnake pravidlo ako pri farebnych tlacidlach: vyhrava najdlhsi sediaci text
+        function pravidloPreStav(text) {
+            const t = String(text || '').toLowerCase();
+            let best = null;
+            for (const r of buttonRules()) {
+                const rt = String(r.text || '').toLowerCase();
+                if (rt && t.indexOf(rt) !== -1 && (!best || rt.length > String(best.text || '').length)) best = r;
+            }
+            return best;
+        }
+
+        // "2026-09-14 07:00:00" / "2026-09-14T07:00" -> { den:"14.09.", cas:"07:00" }
+        function rozlozCas(s) {
+            const m = String(s || '').trim()
+                .match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?$/);
+            if (!m) return null;
+            return { den: m[3] + '.' + m[2] + '.', cas: m[4] + ':' + m[5] };
+        }
+
+        function jeStav(text) {
+            const t = String(text || '').trim();
+            return t.length > 2 && t.length < 60 && !/^\d/.test(t) && !!pravidloPreStav(t);
+        }
+
+        function prekresliBunku(el) {
+            const raw = el.dataset.pdaOrig !== undefined ? el.dataset.pdaOrig : (el.textContent || '').trim();
+            if (!raw) return;
+            // uz prevedene a od vtedy sa nic nezmenilo
+            if (el.dataset.pdaOrig !== undefined && el.dataset.pdaDone === '1' &&
+                el.querySelector('.pda-cas, .pda-stav')) return;
+
+            const cas = rozlozCas(raw);
+            if (cas) {
+                el.dataset.pdaOrig = raw;
+                el.dataset.pdaDone = '1';
+                el.textContent = '';
+                const w = document.createElement('span');
+                w.className = 'pda-cas';
+                const d = document.createElement('span'); d.className = 'd'; d.textContent = cas.den;
+                const c = document.createElement('span'); c.className = 'c'; c.textContent = cas.cas;
+                w.appendChild(d); w.appendChild(c);
+                el.appendChild(w);
+                return;
+            }
+
+            if (jeStav(raw)) {
+                const r = pravidloPreStav(raw);
+                el.dataset.pdaOrig = raw;
+                el.dataset.pdaDone = '1';
+                el.textContent = '';
+                const p = document.createElement('span');
+                p.className = 'pda-stav';
+                p.textContent = raw;
+                if (r) { p.style.background = r.bg; p.style.color = r.fg; }
+                el.appendChild(p);
+            }
+        }
+
+        function apply() {
+            const dialog = document.querySelector(DIALOG_SEL + '.sapMDialog');
+            if (!dialog) return;
+            injectStyles();
+            dialog.querySelectorAll('.sapMListTblCell .sapMText, .sapMListTblCell .sapMLabel')
+                .forEach((el) => {
+                    if (el.querySelector('.sapMText, .sapMLabel')) return;   // len listy stromu
+                    try { prekresliBunku(el); } catch (e) { /* kozmetika, nikdy nesmie zhodit dialog */ }
+                });
+        }
+
+        DomWatch.add(apply);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.13 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -3161,6 +3318,13 @@ canvas#ResourceDetails { max-width:100% !important; }
             desc: 'Graf pod pracovným zoznamom: čas dole len ako HH:MM, zaoblené a tenšie pásy, nižšie plátno (uvoľní miesto zoznamu). Údaje sa nemenia, len vzhľad.',
             def: true,
             run: modChartStyle,
+        },
+        {
+            id: 'statusTable',
+            name: 'Krajšia tabuľka stavov',
+            desc: 'Tabuľka, ktorá sa otvorí tlačidlom s mriežkou pri grafe: dátum a čas v krátkom tvare, stav ako farebná pilulka, vyššie a striedavo podfarbené riadky.',
+            def: true,
+            run: modStatusTable,
         },
         {
             id: 'debug',
