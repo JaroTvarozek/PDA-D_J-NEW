@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.16.0
+// @version      1.16.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2878,29 +2878,32 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 
     /*
      * Graf pod pracovnym zoznamom kresli appka cez Chart.js 4.4.2 do platna
-     * `ResourceDetails` (zoom v dialogu do `DialogChart`) - zistene zo zdrojakov
-     * appky: PDA_Chart.displayTimelineChart s elementId "ResourceDetails".
+     * `ResourceDetails`, detail (lupa) do `DialogChart` v dialogu
+     * `Popups--Dialog_Chart` - zistene zo zdrojakov appky (PDA_Chart.displayTimelineChart).
      *
-     * Modul graf NEKRESLI odznova - iba prestavi hotovu instanciu, takze udaje
-     * ostavaju presne tie, ktore poslala appka:
-     *   - popisky casu len ako HH:MM (namiesto "2026-09-14 07:00:00" nakoso)
-     *   - pasy zaoblene a tensie (povodne zabrali skoro celu vysku)
-     *   - platno nizsie -> pod zoznamom zakaziek sa uvolni miesto
-     *   - jemnejsia mriezka, svetlejsie popisky
+     * Modul graf NEKRESLI odznova, iba prestavi hotovu instanciu, takze udaje
+     * ostavaju presne tie, ktore poslala appka.
      *
-     * Ked by sa ku kniznici Chart nedalo dostat, modul aspon znizi platno cez
-     * CSS - Chart.js je v responsive rezime a prekresli sa sam.
+     * ⚠️ Dolezite (zistene 2026-09-14 pri v1.16.0): v Chart.js v4 NESTACI menit
+     * `chart.options` - pri prekresleni sa nastavenia beru z `chart.config.options`
+     * (a hotove osi maju este vlastnu kopiu v `chart.scales.x.options`). Preto sa
+     * ta ista uprava nanasa na VSETKY tieto miesta; inak sa zmeni len hrubka pasov
+     * (tie su v `chart.data.datasets`) a popisky casu ostanu dlhe.
      */
     function modChartStyle() {
-        const CANVAS_IDS = ['ResourceDetails', 'DialogChart'];
+        const MALY = 'ResourceDetails';
+        const VELKY = 'DialogChart';
+        const DIALOG_ID = 'Popups--Dialog_Chart';
         const STYLE_ID = '__pda_chart_styles__';
-        const RIADOK = 30;      // vyska jedneho pasu aj s medzerou
-        const OKRAJE = 30;      // miesto na popisky casu a odsadenie
-        const MIN_V = 84;
-        const MAX_V = 220;
+
+        // maly graf pod zoznamom: co najnizsi, nech ostane miesto na zakazky
+        const M_RIADOK = 30, M_OKRAJE = 30, M_MIN = 84, M_MAX = 220;
+        // detail: siroky, ale nie na celu vysku obrazovky
+        const V_RIADOK = 80, V_OKRAJE = 110, V_MIN = 240;
 
         let chybaKnizniceLogged = false;
         let detailOtvoreny = false;
+        let zatvaranieNapojene = false;
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -2908,20 +2911,20 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             st.id = STYLE_ID;
             st.textContent = `
 #WorkcenterDetail--ChartFlexBox { padding-top:0 !important; margin-top:0 !important; }
-canvas#ResourceDetails { max-width:100% !important; }
+canvas#${MALY} { max-width:100% !important; }
 /* nadpis "Resource over time" zabral dva riadky - staci jemny jednoriadkovy popisok */
 .pda-chart-nadpis { font-size:11px !important; font-weight:700 !important; letter-spacing:.1em !important;
   text-transform:uppercase !important; color:#8e9bb0 !important; white-space:nowrap !important;
   line-height:1.2 !important; margin:0 !important; padding:0 !important; }
 .pda-chart-nadpis .sapMTitleInner, .pda-chart-nadpis bdi, .pda-chart-nadpis span { font-size:11px !important;
   font-weight:700 !important; color:#8e9bb0 !important; white-space:nowrap !important; }
-/* detail grafu (lupa) - takmer cela obrazovka, nech je vidiet viac */
-#Popups--Dialog_Chart { width:96vw !important; height:92vh !important; max-width:96vw !important;
-  max-height:92vh !important; left:2vw !important; top:4vh !important; transform:none !important;
-  border-radius:16px !important; }
-#Popups--Dialog_Chart .sapMDialogScrollCont, #Popups--Chart_FlexBox { width:100% !important; height:100% !important;
-  box-sizing:border-box; }
-#Popups--Dialog_Chart canvas#DialogChart { width:100% !important; height:100% !important; }
+/* detail grafu (lupa): siroky na celu obrazovku, vysoky len tolko, kolko treba */
+#${DIALOG_ID} { width:96vw !important; max-width:96vw !important; left:2vw !important;
+  height:auto !important; max-height:82vh !important; top:9vh !important; transform:none !important;
+  border-radius:16px !important; box-shadow:0 24px 70px rgba(16,36,63,.4) !important; }
+#${DIALOG_ID} .sapMDialogSection, #${DIALOG_ID} .sapMDialogScrollCont { height:auto !important;
+  max-height:none !important; padding:6px 12px 10px !important; }
+#${DIALOG_ID} canvas#${VELKY} { max-width:100% !important; }
 `;
             document.head.appendChild(st);
         }
@@ -2972,45 +2975,39 @@ canvas#ResourceDetails { max-width:100% !important; }
             return m ? dve(Number(m[1])) + ':' + m[2] : s;
         }
 
-        function vyskaGrafu(chart) {
-            let riadkov = 1;
+        function riadkov(chart) {
             try {
                 const l = chart.data && chart.data.labels;
-                if (l && l.length) riadkov = l.length;
+                if (l && l.length) return l.length;
             } catch (e) { /* ignore */ }
-            return Math.min(MAX_V, Math.max(MIN_V, riadkov * RIADOK + OKRAJE));
+            return 1;
         }
 
-        function upravChart(chart, canvas) {
-            if (!chart || chart.__pdaUpraveny) return false;
-            chart.__pdaUpraveny = true;
+        function vyskaMaleho(chart) {
+            return Math.min(M_MAX, Math.max(M_MIN, riadkov(chart) * M_RIADOK + M_OKRAJE));
+        }
 
-            // detail (lupa) je takmer cez celu obrazovku - tam su hrubsie pasy
-            // a hustejsia casova os, aby bolo vidiet viac
-            const velky = canvas.id === 'DialogChart';
+        function vyskaVelkeho(chart) {
+            const strop = Math.round(W.innerHeight * 0.66);
+            return Math.min(strop, Math.max(V_MIN, riadkov(chart) * V_RIADOK + V_OKRAJE));
+        }
 
-            const o = chart.options = chart.options || {};
-            o.maintainAspectRatio = false;
-            o.responsive = true;
-            o.animation = false;
+        // vsetky miesta, odkial Chart.js berie nastavenia (viac o tom v komentari hore)
+        function vsetkyOptions(chart) {
+            const out = [];
+            const pridaj = (o) => { if (o && out.indexOf(o) === -1) out.push(o); };
+            try { pridaj(chart.options); } catch (e) { /* ignore */ }
+            try { pridaj(chart.config && chart.config.options); } catch (e) { /* ignore */ }
+            try { pridaj(chart.config && chart.config._config && chart.config._config.options); } catch (e) { /* ignore */ }
+            return out;
+        }
 
-            // --- pasy: zaoblene a tenke ---
-            (chart.data && chart.data.datasets ? chart.data.datasets : []).forEach((ds) => {
-                ds.borderRadius = velky ? 9 : 6;
-                ds.borderSkipped = false;
-                ds.barThickness = velky ? 40 : 22;
-                ds.maxBarThickness = velky ? 56 : 26;
-                ds.borderWidth = 0;
-            });
-
-            // --- os casu: len HH:MM, vodorovne, jemna mriezka ---
-            const sc = o.scales = o.scales || {};
-            const x = sc.x = sc.x || {};
-            x.ticks = Object.assign({}, x.ticks, {
+        function osX(velky) {
+            return {
                 maxRotation: 0,
                 minRotation: 0,
                 autoSkip: true,
-                maxTicksLimit: velky ? 24 : 10,
+                maxTicksLimit: velky ? 20 : 9,
                 color: velky ? '#5b6b83' : '#8e9bb0',
                 font: { size: velky ? 13 : 11 },
                 callback(value) {
@@ -3020,54 +3017,94 @@ canvas#ResourceDetails { max-width:100% !important; }
                     } catch (e) { /* ignore */ }
                     return hhmm(raw);
                 },
+            };
+        }
+
+        function nastav(o, velky) {
+            o.maintainAspectRatio = false;
+            o.responsive = true;
+            o.animation = false;
+            o.layout = Object.assign({}, o.layout, { padding: { top: 2, right: 8, bottom: 0, left: 2 } });
+
+            const sc = o.scales = o.scales || {};
+            const x = sc.x = sc.x || {};
+            x.ticks = Object.assign({}, x.ticks, osX(velky));
+            x.grid = Object.assign({}, x.grid, {
+                color: 'rgba(120,140,170,.14)', drawBorder: false, tickLength: 4,
             });
-            x.grid = Object.assign({}, x.grid, { color: 'rgba(120,140,170,.14)', drawBorder: false, tickLength: 4 });
-            if (x.time) x.time.displayFormats = Object.assign({}, x.time.displayFormats, {
-                millisecond: 'HH:mm', second: 'HH:mm', minute: 'HH:mm', hour: 'HH:mm', day: 'HH:mm',
-            });
+            x.border = Object.assign({}, x.border, { display: false });
+            if (x.time) {
+                x.time.displayFormats = Object.assign({}, x.time.displayFormats, {
+                    millisecond: 'HH:mm', second: 'HH:mm', minute: 'HH:mm', hour: 'HH:mm', day: 'HH:mm',
+                });
+                x.time.tooltipFormat = 'HH:mm';
+            }
 
             const y = sc.y = sc.y || {};
             y.ticks = Object.assign({}, y.ticks, {
-                color: '#5b6b83',
-                font: { size: velky ? 14 : 11.5, weight: '600' },
+                color: '#5b6b83', font: { size: velky ? 14 : 11.5, weight: '600' },
             });
             y.grid = Object.assign({}, y.grid, { display: false, drawBorder: false });
+            y.border = Object.assign({}, y.border, { display: false });
 
-            // --- nadpis v grafe ("Workcenter reports from last 24h: …") je zbytocny ---
-            o.plugins = o.plugins || {};
-            o.plugins.title = Object.assign({}, o.plugins.title, { display: false });
-            o.plugins.subtitle = Object.assign({}, o.plugins.subtitle, { display: false });
-            o.layout = Object.assign({}, o.layout, { padding: { top: 2, right: 6, bottom: 0, left: 2 } });
-
-            // --- bublina pri nabehnuti: cas tiez len HH:MM ---
-            o.plugins.tooltip = Object.assign({}, o.plugins.tooltip, {
+            const p = o.plugins = o.plugins || {};
+            // nadpis "Workcenter reports from last 24h: ..." je zbytocny
+            p.title = Object.assign({}, p.title, { display: false });
+            p.subtitle = Object.assign({}, p.subtitle, { display: false });
+            p.tooltip = Object.assign({}, p.tooltip, {
                 backgroundColor: 'rgba(19,49,92,.94)',
-                titleFont: { size: 12.5 },
-                bodyFont: { size: 12.5 },
-                padding: 9,
+                titleFont: { size: velky ? 14 : 12.5 },
+                bodyFont: { size: velky ? 14 : 12.5 },
+                padding: 10,
                 cornerRadius: 8,
-                displayColors: true,
             });
-            if (o.plugins.legend) {
-                o.plugins.legend.labels = Object.assign({}, o.plugins.legend.labels, {
-                    boxWidth: 12, boxHeight: 12, usePointStyle: true, color: '#5b6b83', font: { size: 11.5 },
+            if (p.legend) {
+                p.legend.labels = Object.assign({}, p.legend.labels, {
+                    boxWidth: 12, boxHeight: 12, usePointStyle: true,
+                    color: '#5b6b83', font: { size: velky ? 13 : 11.5 },
                 });
             }
+        }
 
-            // --- platno: v detaile cele okno, inak nizke (viac miesta na zakazky) ---
+        function upravChart(chart, canvas) {
+            if (!chart) return false;
+            const velky = canvas.id === VELKY;
+
+            // pasy: zaoblene, v detaile hrubsie
+            (chart.data && chart.data.datasets ? chart.data.datasets : []).forEach((ds) => {
+                ds.borderRadius = velky ? 9 : 6;
+                ds.borderSkipped = false;
+                ds.barThickness = velky ? 34 : 22;
+                ds.maxBarThickness = velky ? 44 : 26;
+                ds.borderWidth = 0;
+            });
+
+            vsetkyOptions(chart).forEach((o) => { try { nastav(o, velky); } catch (e) { /* ignore */ } });
+
+            // hotove osi maju vlastnu kopiu nastaveni - bez toho ostanu dlhe popisky
+            try {
+                if (chart.scales && chart.scales.x && chart.scales.x.options) {
+                    chart.scales.x.options.ticks = Object.assign({}, chart.scales.x.options.ticks, osX(velky));
+                }
+            } catch (e) { /* ignore */ }
+
             const wrap = canvas.parentElement;
             if (wrap) {
                 wrap.style.position = wrap.style.position || 'relative';
-                wrap.style.height = velky ? '100%' : vyskaGrafu(chart) + 'px';
+                wrap.style.height = (velky ? vyskaVelkeho(chart) : vyskaMaleho(chart)) + 'px';
             }
 
             try { chart.resize(); } catch (e) { /* ignore */ }
-            try { chart.update('none'); } catch (e) { try { chart.update(); } catch (e2) { /* ignore */ } }
-            console.log(LOG, 'graf upravený:', canvas.id);
+            try { chart.update(); } catch (e) { /* ignore */ }
+
+            if (!chart.__pdaUpraveny) {
+                chart.__pdaUpraveny = true;
+                console.log(LOG, 'graf upravený:', canvas.id, '· riadkov:', riadkov(chart));
+            }
             return true;
         }
 
-        // dvojriadkovy nadpis nad grafom stlacime na jeden jemny riadok
+        // dvojriadkovy nadpis nad malym grafom stlacime na jeden jemny riadok
         function zmensiNadpis() {
             const left = document.getElementById('WorkcenterDetail--LeftColumn_FlexBox');
             if (!left) return;
@@ -3080,28 +3117,48 @@ canvas#ResourceDetails { max-width:100% !important; }
             });
         }
 
+        function detailJeOtvoreny() {
+            const dlg = document.getElementById(DIALOG_ID);
+            return !!(dlg && dlg.getBoundingClientRect().width > 0);
+        }
+
+        // klik vedla okna detail zavrie (appka na to vlastne tlacidlo nema)
+        function napojZatvaranie() {
+            if (zatvaranieNapojene) return;
+            zatvaranieNapojene = true;
+            document.addEventListener('mousedown', (e) => {
+                const dlg = document.getElementById(DIALOG_ID);
+                if (!dlg || dlg.getBoundingClientRect().width === 0) return;
+                if (dlg.contains(e.target)) return;
+                try {
+                    const ctrl = getControl(DIALOG_ID);
+                    if (ctrl && typeof ctrl.close === 'function') ctrl.close();
+                } catch (err) { /* ignore */ }
+            }, true);
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape' || !detailJeOtvoreny()) return;
+                try {
+                    const ctrl = getControl(DIALOG_ID);
+                    if (ctrl && typeof ctrl.close === 'function') ctrl.close();
+                } catch (err) { /* ignore */ }
+            });
+        }
+
         /*
-         * Detail grafu (lupa): dialog je cez CSS zvacseny na 96 x 92 % obrazovky,
-         * ale Chart.js sa do novej velkosti prekresli az po zmene velkosti okna
-         * (overene uz v Python verzii). Preto pri kazdom otvoreni posleme jeden
-         * `resize` a graf prepocitame.
+         * Pri otvoreni detailu treba grafu poslat `resize` - do novej velkosti
+         * dialogu sa sam neprekresli (overene uz v Python verzii).
          */
         function dopasujDetail(C) {
-            const dlg = document.getElementById('Popups--Dialog_Chart');
-            const otvoreny = !!(dlg && dlg.getBoundingClientRect().width > 0);
+            const otvoreny = detailJeOtvoreny();
             if (otvoreny === detailOtvoreny) return;
             detailOtvoreny = otvoreny;
             if (!otvoreny) return;
 
             setTimeout(() => {
                 try {
-                    const canvas = document.getElementById('DialogChart');
+                    const canvas = document.getElementById(VELKY);
                     const ch = C && canvas ? instancia(C, canvas) : null;
-                    if (ch) {
-                        upravChart(ch, canvas);
-                        ch.resize();
-                        ch.update('none');
-                    }
+                    if (ch) upravChart(ch, canvas);
                     W.dispatchEvent(new Event('resize'));
                 } catch (e) { /* ignore */ }
             }, 150);
@@ -3109,21 +3166,25 @@ canvas#ResourceDetails { max-width:100% !important; }
 
         function apply() {
             injectStyles();
+            napojZatvaranie();
             zmensiNadpis();
+
             const C = kniznica();
             dopasujDetail(C);
-            CANVAS_IDS.forEach((id) => {
+
+            [MALY, VELKY].forEach((id) => {
                 const canvas = document.getElementById(id);
                 if (!canvas) return;
                 if (!C) {
                     // zaloha bez kniznice: aspon nizsie platno, Chart.js sa prekresli sam
                     const wrap = canvas.parentElement;
-                    if (wrap && id === 'ResourceDetails' && wrap.style.height !== MIN_V + 'px') {
-                        wrap.style.height = MIN_V + 'px';
+                    if (wrap && id === MALY && wrap.style.height !== M_MIN + 'px') {
+                        wrap.style.height = M_MIN + 'px';
                     }
                     return;
                 }
-                upravChart(instancia(C, canvas), canvas);
+                const ch = instancia(C, canvas);
+                if (ch && !ch.__pdaUpraveny) upravChart(ch, canvas);
             });
         }
 
