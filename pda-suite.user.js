@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.16.4
+// @version      1.17.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3366,7 +3366,91 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
         onReady(apply);
     }
 
-    /* -------------------- 3.13 Ladiaci vypis ---------------------------- */
+    /* ---------- 3.13 Hlavicka detailu: vsetko do jedneho riadku ---------- */
+
+    /*
+     * Hlavicka nad stavovymi tlacidlami zabrala skoro tretinu obrazovky:
+     * tri riadky formulara (Zakaznicka zakazka / Material / Production Order)
+     * boli od seba na 50 px, tlacidlo "Operation Complete" bolo vysoke na dva
+     * riadky a okienko VYKRES malo vlastny riadok nad tym vsetkym.
+     *
+     * Modul nic nepresklada v appke - len:
+     *   1. nase okienko VYKRES presunie do toho isteho riadku, kde uz je
+     *      prepinac Machine a tlacidlo Operation Complete (poradie: prepinac,
+     *      vykres, tlacidlo)
+     *   2. formular stlaci do kompaktneho zaobleneho boxu (riadky tesne pod sebou)
+     *   3. tlacidlo Operation Complete da na jeden riadok, nizsie a sirsie
+     *
+     * Prvky appky: WorkcenterDetail--Order_FlexBox (VBox) -> OrderHeader_FlexBox
+     * (HBox: formular, Machine_Switch, Confirm_Button).
+     */
+    function modDetailHeader() {
+        const HEADER_ID = 'WorkcenterDetail--OrderHeader_FlexBox';
+        const CONFIRM_ID = 'WorkcenterDetail--Confirm_Button';
+        const SWITCH_ID = 'WorkcenterDetail--Machine_Switch';
+        const DRAWING_ID = '__pda_order_drawing_wrapper__';
+        const STYLE_ID = '__pda_detail_header_styles__';
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+/* cely riadok hlavicky: prepinac, vykres a tlacidlo vedla seba, zvisle na stred */
+#${HEADER_ID} { align-items:center !important; gap:12px !important; padding:4px 8px 2px !important; }
+
+/* formular (zakazka / material / production order) ako kompaktny box */
+#${HEADER_ID} .sapUiForm { background:#f7f9fd !important; border:1px solid #e3e9f1 !important;
+  border-radius:12px !important; padding:7px 12px !important; margin:0 !important; flex:1 1 auto; min-width:0; }
+#${HEADER_ID} .sapUiForm .sapUiFormElement,
+#${HEADER_ID} .sapUiForm .sapUiRespGridRow { margin:0 !important; padding:0 !important; }
+#${HEADER_ID} .sapUiForm [class*="sapUiRespGridSpan"],
+#${HEADER_ID} .sapUiForm [class*="sapUiRespGridHSpace"] { padding-top:1px !important; padding-bottom:1px !important;
+  margin-top:0 !important; margin-bottom:0 !important; }
+#${HEADER_ID} .sapUiForm .sapMLabel { font-size:11px !important; line-height:1.45 !important;
+  color:#6b7c95 !important; text-transform:uppercase; letter-spacing:.04em; font-weight:700 !important; }
+#${HEADER_ID} .sapUiForm .sapMText, #${HEADER_ID} .sapUiForm .sapMTextMaxLine {
+  font-size:13px !important; line-height:1.45 !important; color:#13315c !important; font-weight:600 !important; }
+#${HEADER_ID} .sapUiForm .sapUiFormTitle, #${HEADER_ID} .sapUiForm .sapUiFormTitleH5 { display:none !important; }
+
+/* prepinac Machine */
+#${SWITCH_ID} { flex:0 0 auto; margin:0 !important; }
+
+/* okienko VYKRES presunute do riadku */
+#${DRAWING_ID}.pda-v-riadku { width:auto !important; margin:0 !important; flex:0 0 auto; }
+#${DRAWING_ID}.pda-v-riadku > button { margin-right:0 !important; }
+
+/* Operation Complete: na jeden riadok, nizsie a sirsie */
+#${CONFIRM_ID} { height:auto !important; min-height:0 !important; max-height:none !important;
+  width:auto !important; flex:0 0 auto; margin:0 !important; }
+#${CONFIRM_ID} .sapMBtnInner { height:auto !important; min-height:0 !important;
+  padding:10px 26px !important; white-space:nowrap !important; }
+#${CONFIRM_ID} .sapMBtnContent, #${CONFIRM_ID} bdi { white-space:nowrap !important;
+  font-size:14px !important; line-height:1.2 !important; }
+`;
+            document.head.appendChild(st);
+        }
+
+        function apply() {
+            const header = document.getElementById(HEADER_ID);
+            if (!header) return;
+            injectStyles();
+
+            // VYKRES medzi prepinac a tlacidlo (ked modul vykresu bezi)
+            const wrap = document.getElementById(DRAWING_ID);
+            const confirm = document.getElementById(CONFIRM_ID);
+            if (!wrap || !confirm || !confirm.parentElement) return;
+            if (!confirm.parentElement.contains(wrap) || wrap.nextElementSibling !== confirm) {
+                confirm.parentElement.insertBefore(wrap, confirm);
+            }
+            if (!wrap.classList.contains('pda-v-riadku')) wrap.classList.add('pda-v-riadku');
+        }
+
+        DomWatch.add(apply);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.14 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -3469,6 +3553,13 @@ ${DIALOG_SEL} .sapMSF, ${DIALOG_SEL} .sapMSFB { border-radius:10px !important; }
             desc: 'Tabuľka, ktorá sa otvorí tlačidlom s mriežkou pri grafe: dátum a čas v krátkom tvare, stav ako farebná pilulka, vyššie a striedavo podfarbené riadky.',
             def: true,
             run: modStatusTable,
+        },
+        {
+            id: 'detailHeader',
+            name: 'Kompaktná hlavička detailu',
+            desc: 'Zákazka, materiál a Production Order stlačí do jedného kompaktného boxu a prepínač Machine, okienko VÝKRES aj tlačidlo Operation Complete dá do jedného riadku. Uvoľní sa tým miesto dole.',
+            def: true,
+            run: modDetailHeader,
         },
         {
             id: 'debug',
