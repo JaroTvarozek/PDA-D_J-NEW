@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.13.1
+// @version      1.13.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2384,6 +2384,7 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         const SCROLL_ID = 'WorkcenterDetail--WorkList_ScrollContainer';
         const LEFT_ID = 'WorkcenterDetail--LeftColumn_FlexBox';
         const STYLE_ID = '__pda_orderlist_styles__';
+        const TIP_ID = '__pda_pill_tip__';
         const MIN_HEIGHT = 240;       // pod tuto vysku zoznam nikdy nestlacime
         const BOTTOM_GAP = 18;        // medzera pod lavym stlpcom
 
@@ -2406,9 +2407,15 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
   background:#fff !important; overflow:hidden; transition:border-color .12s, box-shadow .12s; }
 #${LIST_ID} .sapMLIB.pda-pill-on:nth-child(even) { background:#eef3fa !important; }
 #${LIST_ID} .sapMLIB.pda-pill-on:hover { border-color:#7ba4ee !important; box-shadow:0 3px 10px rgba(16,36,63,.12) !important; }
+/* vybrana zakazka: tmavomodra na bielo - nedá sa zamenit so striedavym podfarbenim */
 #${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected,
-#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected:nth-child(even) { border:2px solid #2563eb !important;
-  background:#e3edfe !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected:nth-child(even) { border:2px solid #0b2447 !important;
+  background:#13315c !important; box-shadow:0 3px 12px rgba(19,49,92,.35) !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .pda-pill { color:#fff; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .t-zak { background:#fff; color:#13315c; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .t-op { background:#2f5fa8; color:#fff; border-color:#5b87cc; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .mat { color:#fff; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected .matn { color:#c9d8ef; }
 #${LIST_ID} .sapMLIB.pda-pill-on > *:not([data-pda-pill]) { display:none !important; }
 .pda-pill { padding:5px 9px; font:12px/1.25 -apple-system,"Segoe UI",Roboto,sans-serif; color:#1a2233; }
 .pda-pill.run { box-shadow: inset 4px 0 0 #2e9e4f; }
@@ -2421,8 +2428,18 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
 .pda-pill .t-run { background:#e7f6ec; color:#1d7a3c; border:1px solid #b6e2c5; margin-left:auto; }
 .pda-pill .mat { font-size:11.5px; font-weight:700; color:#0f172a; white-space:nowrap; }
 .pda-pill .matn { font-size:11.5px; color:#4a5568; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
-.pda-pill .opd { font-size:10.5px; color:#8e9bb0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  flex:0 1 auto; max-width:42%; }
+.pda-pill .t-zak { flex:0 0 auto; }
+.pda-pill .t-op { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+/* bublina s celym obsahom zakazky */
+#${TIP_ID} { display:none; position:fixed; z-index:100001; pointer-events:none;
+  background:#fff; border:1px solid #b9cbe8; border-radius:10px; padding:10px 12px;
+  box-shadow:0 10px 30px rgba(16,36,63,.22); max-width:520px;
+  font:12.5px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif; color:#1a2233; }
+#${TIP_ID} .tab { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; }
+#${TIP_ID} .r { display:contents; }
+#${TIP_ID} .k { color:#6b7c95; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  white-space:nowrap; padding-top:1px; }
+#${TIP_ID} .v { color:#13315c; font-weight:600; }
 `;
             document.head.appendChild(st);
         }
@@ -2517,39 +2534,122 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             return el;
         }
 
+        /*
+         * V pilulke su prve TRI riadky povodnej polozky (zakaznicka zakazka,
+         * vyrobna zakazka s operaciou, material s nazvom). Stvrty riadok - popis
+         * operacie - sa uz nezobrazuje, je len v bubline po nabehnuti mysou.
+         */
         function buildPill(d) {
             const box = document.createElement('div');
             box.setAttribute('data-pda-pill', '1');
             box.className = 'pda-pill' + (Number(d.count) > 0 ? ' run' : '');
 
-            const zak = [txt(d.salesOrderNo), txt(d.salesOrderItem)].filter(Boolean).join('-');
-            const op = txt(d.operationNo);
-            const vyroba = txt(d.productionOrderNo);
+            // bez cisla zakazky nema zmysel ukazovat samotnu polozku ("000000")
+            const zak = txt(d.salesOrderNo)
+                ? [txt(d.salesOrderNo), txt(d.salesOrderItem)].filter(Boolean).join(' - ')
+                : '';
+            const vyroba = [txt(d.productionOrderNo), txt(d.operationNo), txt(d.sequenceNo)]
+                .filter(Boolean).join(' - ');
 
             const r1 = document.createElement('div');
             r1.className = 'r1';
             if (zak) r1.appendChild(span('t t-zak', zak));
-            if (op) r1.appendChild(span('t t-op', 'op ' + op));
+            if (vyroba) r1.appendChild(span('t t-op', vyroba));
             if (Number(d.count) > 0) r1.appendChild(span('t t-run', '● vyrába'));
             box.appendChild(r1);
 
             const material = txt(d.materialNo).replace(/^0+/, '');
             const nazov = txt(d.material) || txt(d.descriptionShort);
-            const popis = txt(d.description);
 
             const r2 = document.createElement('div');
             r2.className = 'r2';
             if (material) r2.appendChild(span('mat', material));
             if (nazov) r2.appendChild(span('matn', nazov));
-            if (popis && popis !== nazov) r2.appendChild(span('opd', popis));
             if (r2.childNodes.length) box.appendChild(r2);
 
-            // v bubline ostane aj to, co sa do riadku nezmestilo
-            box.title = [zak && 'Zákazka: ' + zak,
-                         vyroba && 'Výrobná zákazka: ' + vyroba + (op ? ' / op. ' + op : ''),
-                         material && 'Materiál: ' + material + (nazov ? ' – ' + nazov : ''),
-                         popis && 'Operácia: ' + popis].filter(Boolean).join('\n');
+            udaje.set(box, d);   // pre bublinu pri nabehnuti mysou
             return box;
+        }
+
+        /* ---- bublina s celym obsahom zakazky (nabehnutie mysou) ----
+         * Vlastna bublina namiesto systemoveho `title`: ukaze sa hned (nie po
+         * sekunde), da sa ostylovat a zmestia sa do nej aj udaje, ktore sa do
+         * pilulky nevojdu - hlavne stvrty riadok (popis operacie) a stav.
+         */
+        const udaje = new WeakMap();
+        let tip = null;
+
+        function tipEl() {
+            if (tip && tip.isConnected) return tip;
+            tip = document.createElement('div');
+            tip.id = TIP_ID;
+            document.body.appendChild(tip);
+            return tip;
+        }
+
+        function tipRiadok(tabulka, popisok, hodnota) {
+            if (!hodnota) return;
+            const r = document.createElement('div');
+            r.className = 'r';
+            const k = document.createElement('span'); k.className = 'k'; k.textContent = popisok;
+            const v = document.createElement('span'); v.className = 'v'; v.textContent = hodnota;
+            r.appendChild(k); r.appendChild(v);
+            tabulka.appendChild(r);
+        }
+
+        function ukazTip(pill, x, y) {
+            const d = udaje.get(pill);
+            if (!d) return;
+            const el = tipEl();
+            el.textContent = '';
+
+            const t = document.createElement('div');
+            t.className = 'tab';
+            tipRiadok(t, 'Zákazka', [txt(d.salesOrderNo), txt(d.salesOrderItem)].filter(Boolean).join(' - '));
+            tipRiadok(t, 'Výrobná zákazka', [txt(d.productionOrderNo), txt(d.operationNo), txt(d.sequenceNo)]
+                .filter(Boolean).join(' - '));
+            tipRiadok(t, 'Materiál', [txt(d.materialNo).replace(/^0+/, ''), txt(d.material) || txt(d.descriptionShort)]
+                .filter(Boolean).join(' - '));
+            tipRiadok(t, 'Operácia', txt(d.description));
+            tipRiadok(t, 'Stav', [txt(d.status), Number(d.count) > 0 ? 'vyrába (' + d.count + ')' : '']
+                .filter(Boolean).join(' · '));
+            el.appendChild(t);
+
+            el.style.display = 'block';
+            posunTip(x, y);
+        }
+
+        function posunTip(x, y) {
+            if (!tip) return;
+            const r = tip.getBoundingClientRect();
+            const l = Math.min(Math.max(8, x + 16), W.innerWidth - r.width - 8);
+            const t = y + 18 + r.height > W.innerHeight ? Math.max(8, y - r.height - 12) : y + 18;
+            tip.style.left = Math.round(l) + 'px';
+            tip.style.top = Math.round(t) + 'px';
+        }
+
+        function skryTip() {
+            if (tip) tip.style.display = 'none';
+        }
+
+        // jedno odpocuvanie na celom zozname namiesto listenerov na kazdej pilulke
+        function napojTip(list) {
+            if (list.dataset.pdaTipOn) return;
+            list.dataset.pdaTipOn = '1';
+            list.addEventListener('mouseover', (e) => {
+                const pill = e.target.closest && e.target.closest('[data-pda-pill]');
+                if (pill) ukazTip(pill, e.clientX, e.clientY);
+            });
+            list.addEventListener('mousemove', (e) => {
+                if (tip && tip.style.display === 'block') posunTip(e.clientX, e.clientY);
+            });
+            list.addEventListener('mouseleave', skryTip);
+            list.addEventListener('mouseout', (e) => {
+                const kam = e.relatedTarget;
+                if (!kam || !kam.closest || !kam.closest('[data-pda-pill]')) skryTip();
+            });
+            // pri kliku (vybera sa zakazka) bublina prekaza
+            list.addEventListener('click', skryTip);
         }
 
         /*
@@ -2580,6 +2680,8 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             const list = document.getElementById(LIST_ID);
             if (!list) return;
             injectStyles();
+
+            napojTip(list);
 
             const polozky = list.querySelectorAll('.sapMLIB');
             let hotovych = 0;
