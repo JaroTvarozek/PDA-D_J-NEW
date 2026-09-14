@@ -1,0 +1,8 @@
+# Sukromna dokumentacia a znalostna baza pre Claude - NIKDY nejde do GitHubu.
+# (obsahuje interne IP adresy, mena kolegov, pracovne postupy)
+.claude/
+
+# Lokalne pomocne veci
+*.log
+_na_server_*/
+*.tmp
