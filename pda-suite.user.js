@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.20.1
+// @version      1.20.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3680,6 +3680,36 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             if (sirka > 200 && Math.abs(sirka - r.width) > 2) opis.style.maxWidth = sirka + 'px';
         }
 
+        /*
+         * Popisok a hodnota v hornom boxe nesedeli na jednej linke - popisok bol
+         * vyssie. Presnu hodnotu odsadenia sa neda spolahlivo uhadnut (zavisi od
+         * temy a velkosti pisma), preto sa rozdiel ich zvislych stredov odmeria
+         * priamo na stranke a popisok sa o nho posunie. Po posune je rozdiel
+         * nulovy, takze sa to samo ustali.
+         */
+        function zarovnajRiadky() {
+            const form = document.querySelector('#' + HEADER_ID + ' .sapUiForm');
+            if (!form) return;
+            form.querySelectorAll('.sapMLabel').forEach((lab) => {
+                const row = lab.closest('.sapUiFormElement') || lab.closest('.sapUiRespGridRow');
+                if (!row) return;
+                const val = row.querySelector('.sapMText, .sapMTextMaxLine, .sapMObjectNumberText');
+                if (!val) return;
+
+                const lr = lab.getBoundingClientRect();
+                const vr = val.getBoundingClientRect();
+                if (!lr.height || !vr.height) return;
+
+                const rozdiel = (vr.top + vr.height / 2) - (lr.top + lr.height / 2);
+                const teraz = parseFloat(lab.style.top) || 0;
+                const nove = Math.round(teraz + rozdiel);
+                if (Math.abs(nove - teraz) > 1) {
+                    lab.style.position = 'relative';
+                    lab.style.top = nove + 'px';
+                }
+            });
+        }
+
         function posun(el, vlastnost, rozdiel) {
             if (!el || !isFinite(rozdiel)) return;
             const teraz = parseFloat(el.style[vlastnost]) || 0;
@@ -3707,6 +3737,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             riadokPrepinaca(col);
 
             zarovnajVlavo();
+            zarovnajRiadky();
         }
 
         DomWatch.add(apply);
