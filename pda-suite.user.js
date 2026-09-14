@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.20.3
+// @version      1.20.4
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2756,16 +2756,21 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             if (b2.parentElement !== left) left.appendChild(b2);
 
             let zaZoznamom = false;
+            let presunute = false;
             Array.from(left.children).forEach((ch) => {
                 if (ch === b1 || ch === b2) return;
                 if (ch.contains(sc)) {
-                    if (ch.parentElement !== b1) b1.appendChild(ch);
+                    if (ch.parentElement !== b1) { b1.appendChild(ch); presunute = true; }
                     zaZoznamom = true;
                     return;
                 }
                 const ciel = zaZoznamom ? b2 : b1;
-                if (ch.parentElement !== ciel) ciel.appendChild(ch);
+                if (ch.parentElement !== ciel) { ciel.appendChild(ch); presunute = true; }
             });
+
+            // po presune ma graf novy ramec - Chart.js sa prepocita az po `resize`,
+            // inak by ostal neviditelny (vysoky 0 px)
+            if (presunute) setTimeout(() => W.dispatchEvent(new Event('resize')), 60);
         }
 
         function apply() {
@@ -2996,7 +3001,7 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         // maly graf pod zoznamom: co najnizsi, nech ostane miesto na zakazky
         const M_RIADOK = 30, M_OKRAJE = 30, M_MIN = 84, M_MAX = 220;
         // detail: siroky, ale nie na celu vysku obrazovky
-        const V_RIADOK = 80, V_OKRAJE = 110, V_MIN = 240;
+        const V_RIADOK = 80, V_OKRAJE = 165, V_MIN = 260;   // vacsie okraje = miesto na popisky casu
 
         let chybaKnizniceLogged = false;
         let detailOtvoreny = false;
@@ -3109,7 +3114,7 @@ canvas#${MALY} { max-width:100% !important; }
         }
 
         function vyskaVelkeho(chart) {
-            const strop = Math.round(W.innerHeight * 0.66);
+            const strop = Math.round(W.innerHeight * 0.74);
             return Math.min(strop, Math.max(V_MIN, riadkov(chart) * V_RIADOK + V_OKRAJE));
         }
 
@@ -3601,6 +3606,13 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 #${COL_ID} .pda-machine { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 #${COL_ID} .pda-machine .sapMLabel { font-size:12px !important; color:#5b6b83 !important; }
 
+/* bezici cinnost vpravo (Vyroba - Vyroba / meno / cas / Zastavit) ako jemna pilulka */
+.pda-aktivita { border-radius:14px !important; background:#e9f6ed !important;
+  border:1px solid #bfe3ca !important; box-shadow:0 2px 8px rgba(16,36,63,.10) !important;
+  padding:12px 14px !important; margin:8px 0 !important; box-sizing:border-box; }
+.pda-aktivita .sapMBtn { border-radius:999px !important; box-shadow:0 2px 6px rgba(16,36,63,.16) !important; }
+.pda-aktivita .sapMBtn .sapMBtnInner { border-radius:999px !important; padding:6px 16px !important; }
+
 /* Operation Complete: na jeden riadok, nizsie a sirsie */
 #${CONFIRM_ID} { height:auto !important; min-height:0 !important; max-height:none !important;
   width:auto !important; flex:0 0 auto; margin:0 !important; }
@@ -3689,6 +3701,21 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             if (sirka > 200 && Math.abs(sirka - r.width) > 2) opis.style.maxWidth = sirka + 'px';
         }
 
+        /*
+         * Zelene okienko s beziacou cinnostou vpravo (Vyroba - Vyroba, meno,
+         * cas, Zastavit). Najde sa podla tlacidla "Zastavit" - jeho najblizsi
+         * obal je to okienko.
+         */
+        function oznacAktivitu() {
+            document.querySelectorAll('.sapMBtn').forEach((btn) => {
+                const t = (btn.textContent || '').trim();
+                if (!/^(zastavi|stop)/i.test(t)) return;
+                const box = btn.closest('.sapMLIB') || btn.closest('.sapMVBox') ||
+                            btn.closest('.sapMFlexBox') || btn.parentElement;
+                if (box && !box.classList.contains('pda-aktivita')) box.classList.add('pda-aktivita');
+            });
+        }
+
         // lavy okraj praveho stlpca detailu (Components / BOM, Parallel Process Handling)
         function lavyOkrajPravehoStlpca(odX) {
             let x = Infinity;
@@ -3759,6 +3786,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 
             zarovnajVlavo();
             zarovnajRiadky();
+            oznacAktivitu();
         }
 
         DomWatch.add(apply);
