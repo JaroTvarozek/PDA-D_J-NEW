@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.12.0
+// @version      1.13.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -1790,7 +1790,7 @@
 
         // Hlada sa LEN podla cisla vykresu (bez revizie); revizia z Excelu sa
         // v zozname iba zvyrazni, rozhodnutie ostava na cloveku.
-        function pdmOpenDialog(cislo, { path = '', rev = '' } = {}) {
+        function pdmOpenDialog(cislo, { path = '', rev = '', titul = '' } = {}) {
             const overlay = document.createElement('div');
             overlay.id = '__pda_pdm_overlay__';
             overlay.style.cssText =
@@ -1800,7 +1800,9 @@
             overlay.innerHTML =
                 '<div style="background:#fff;border-radius:10px;max-width:900px;width:92%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.3)">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#5b9bd5;color:#fff">' +
-                '<b>Výkresy — ' + cislo + '</b>' +
+                // v hlavicke je to, co vidi operator v okienku VYKRES (cislo vykresu
+                // + revizia); hlada sa stale podla `cislo` (moze to byt aj material)
+                '<b>Výkresy — ' + (titul || cislo) + '</b>' +
                 '<button data-pda-zavrit type="button" style="background:none;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer">×</button>' +
                 '</div><div data-pda-telo style="padding:14px 16px;overflow:auto">Hľadám…</div></div>';
 
@@ -1880,8 +1882,36 @@
 
         // --- tlacidla ---
 
+        /*
+         * Nadpis okna s vykresmi = to iste, co je v okienku VYKRES vpravo hore
+         * ("1-60.2-06.66-009 rev. C"). Predtym tam bolo cislo, podla ktoreho sa
+         * hlada - pri hladani podla materialu teda cislo materialu, co operatora
+         * mylilo. Hladanie sa nemeni, meni sa len text v hlavicke.
+         */
+        function dialogTitle() {
+            if (!currentDrawingInfo) return '';
+            const cislo = String(currentDrawingInfo.drawingNo || '').trim();
+            if (!cislo || cislo === '—' || cislo === '…') return '';
+            const rev = String(currentDrawingInfo.version || '').trim();
+            return rev ? cislo + ' rev. ' + rev : cislo;
+        }
+
+        /*
+         * Hlasenia o Exceli sa uz operatorovi neukazuju. Vykres sa najde aj bez
+         * Excelu (cez sluzbu PDM podla materialu), takze cervene "Excel sa
+         * nestiahol - skus znova" pri otvorenej zakazke len zavadzalo. Jedina
+         * vynimka je stav "needs-permission": tam prehliadac ziada kliknutie
+         * cloveka, bez tlacidla by sa Excel nedal nacitat vobec.
+         * Ostatne stavy idu uz len do konzoly.
+         */
         function renderLoadButtonState(loadButton, state) {
-            if (state === 'loaded') { loadButton.style.display = 'none'; return; }
+            if (state !== 'needs-permission') {
+                loadButton.style.display = 'none';
+                if (state !== 'loaded' && state !== 'nofile' && state !== 'loading') {
+                    console.log(LOG, 'stav Excelu:', state, '(hlasenie sa operatorovi nezobrazuje)');
+                }
+                return;
+            }
             loadButton.style.display = '';
 
             const states = {
@@ -1955,12 +1985,13 @@
                         path,
                         rev: (currentDrawingInfo.source === 'excel' || currentDrawingInfo.source === 'server')
                             ? currentDrawingInfo.version : '',
+                        titul: dialogTitle(),
                     });
                     return;
                 }
                 // inak skusime aspon cislo materialu z otvorenej operacie
                 const material = shared.currentOperation && String(shared.currentOperation.materialNo || '').trim();
-                if (material) pdmOpenDialog(material, { path });
+                if (material) pdmOpenDialog(material, { path, titul: dialogTitle() });
                 else console.log(LOG, 'pre aktuálnu zákazku nie je známe ani číslo výkresu, ani materiálu');
             });
 
@@ -2333,7 +2364,332 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
         onReady(() => setInterval(ensureOverview, 1500));
     }
 
-    /* --------------------- 3.9 Ladiaci vypis ---------------------------- */
+    /* ---------- 3.9 Pracovny zoznam: zakazky ako kompaktne pilulky ---------- */
+
+    /*
+     * Lavy zoznam zakaziek v detaile pracoviska mal kazdu zakazku na styroch
+     * riadkoch (~101 px) a okienko pevnu vysku 20em, takze na obrazovke boli
+     * vidiet 2-3 zakazky a pod zoznamom ostavalo prazdne miesto az po spodok
+     * stranky. Modul robi dve veci:
+     *   1. kazdu polozku prekresli na kompaktnu "pilulku" (dva riadky, ~60 px)
+     *   2. okienko so zoznamom natiahne az k spodnemu okraju obrazovky
+     *
+     * Povodny obsah polozky sa iba SKRYJE (CSS), v DOM ostava - klik, oznacenie,
+     * prepinac VSET aj vyhladavanie appky funguju dalej bez zmeny. Udaje sa
+     * citaju z modelu appky (binding context polozky), nie z textu na obrazovke,
+     * takze sa nic neparsuje a nic sa nemoze "netrafit".
+     */
+    function modOrderListPills() {
+        const LIST_ID = 'WorkcenterDetail--Work_List';
+        const SCROLL_ID = 'WorkcenterDetail--WorkList_ScrollContainer';
+        const LEFT_ID = 'WorkcenterDetail--LeftColumn_FlexBox';
+        const STYLE_ID = '__pda_orderlist_styles__';
+        const MIN_HEIGHT = 240;       // pod tuto vysku zoznam nikdy nestlacime
+        const BOTTOM_GAP = 18;        // medzera pod lavym stlpcom
+
+        let missingLeftLogged = false;
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+#${LEFT_ID} { background:#fff !important; border:1px solid #dfe4ec !important; border-radius:14px !important;
+  padding:8px !important; box-sizing:border-box; }
+#${SCROLL_ID} { border:0 !important; background:transparent !important; }
+#${LIST_ID} { background:transparent !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on { min-height:0 !important; height:auto !important; padding:0 !important;
+  margin:5px 4px !important; border:1px solid #dfe4ec !important; border-radius:12px !important;
+  background:#fff !important; overflow:hidden; transition:border-color .12s, box-shadow .12s; }
+#${LIST_ID} .sapMLIB.pda-pill-on:hover { border-color:#93b4f5 !important; box-shadow:0 4px 12px rgba(16,36,63,.10) !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on.sapMLIBSelected { border:2px solid #2563eb !important; background:#eef4ff !important; }
+#${LIST_ID} .sapMLIB.pda-pill-on > *:not([data-pda-pill]) { display:none !important; }
+.pda-pill { padding:7px 10px; font:13px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif; color:#1a2233; }
+.pda-pill.run { box-shadow: inset 4px 0 0 #2e9e4f; }
+.pda-pill .r1 { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; overflow:hidden; }
+.pda-pill .r2 { display:flex; align-items:baseline; gap:6px; margin-top:3px; overflow:hidden; white-space:nowrap; }
+.pda-pill .t { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
+  white-space:nowrap; letter-spacing:.01em; }
+.pda-pill .t-zak { background:#13315c; color:#fff; }
+.pda-pill .t-op { background:#e8f0fe; color:#1b4f9c; border:1px solid #c3d8f7; }
+.pda-pill .t-run { background:#e7f6ec; color:#1d7a3c; border:1px solid #b6e2c5; margin-left:auto; }
+.pda-pill .mat { font-size:12px; font-weight:700; color:#0f172a; white-space:nowrap; }
+.pda-pill .matn { font-size:12px; color:#4a5568; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
+.pda-pill .opd { font-size:11px; color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  flex:0 1 auto; max-width:45%; }
+`;
+            document.head.appendChild(st);
+        }
+
+        // udaje polozky z modelu appky; null = polozka bez dat (nechame ju tak)
+        function itemData(li) {
+            try {
+                const c = resolveControl(li);
+                if (c && typeof c.getBindingContext === 'function') {
+                    const ctx = c.getBindingContext();
+                    const o = ctx && typeof ctx.getObject === 'function' ? ctx.getObject() : null;
+                    if (o && (o.productionOrderNo || o.salesOrderNo)) return o;
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function txt(v) {
+            return String(v === undefined || v === null ? '' : v).trim();
+        }
+
+        function span(cls, text) {
+            const el = document.createElement('span');
+            el.className = cls;
+            el.textContent = text;
+            return el;
+        }
+
+        function buildPill(d) {
+            const box = document.createElement('div');
+            box.setAttribute('data-pda-pill', '1');
+            box.className = 'pda-pill' + (Number(d.count) > 0 ? ' run' : '');
+
+            const zak = [txt(d.salesOrderNo), txt(d.salesOrderItem)].filter(Boolean).join('-');
+            const op = txt(d.operationNo);
+            const vyroba = txt(d.productionOrderNo);
+
+            const r1 = document.createElement('div');
+            r1.className = 'r1';
+            if (zak) r1.appendChild(span('t t-zak', zak));
+            if (op) r1.appendChild(span('t t-op', 'op ' + op));
+            if (Number(d.count) > 0) r1.appendChild(span('t t-run', '● vyrába'));
+            box.appendChild(r1);
+
+            const material = txt(d.materialNo).replace(/^0+/, '');
+            const nazov = txt(d.material) || txt(d.descriptionShort);
+            const popis = txt(d.description);
+
+            const r2 = document.createElement('div');
+            r2.className = 'r2';
+            if (material) r2.appendChild(span('mat', material));
+            if (nazov) r2.appendChild(span('matn', nazov));
+            if (popis && popis !== nazov) r2.appendChild(span('opd', popis));
+            if (r2.childNodes.length) box.appendChild(r2);
+
+            // v bubline ostane aj to, co sa do riadku nezmestilo
+            box.title = [zak && 'Zákazka: ' + zak,
+                         vyroba && 'Výrobná zákazka: ' + vyroba + (op ? ' / op. ' + op : ''),
+                         material && 'Materiál: ' + material + (nazov ? ' – ' + nazov : ''),
+                         popis && 'Operácia: ' + popis].filter(Boolean).join('\n');
+            return box;
+        }
+
+        /*
+         * Vyska zoznamu: od jeho horneho okraja az po spodok obrazovky, minus to,
+         * co je v lavom stlpci pod nim (graf "Resource over time"). Zvysok sa
+         * pocita ako "cely lavy stlpec minus zoznam", takze nezavisi od toho,
+         * ako vysoky zoznam prave je - nemoze sa to rozkmitat.
+         */
+        function fitHeight() {
+            const sc = document.getElementById(SCROLL_ID);
+            if (!sc || !sc.offsetParent) return;
+            const left = document.getElementById(LEFT_ID);
+            if (!left) {
+                if (!missingLeftLogged) {
+                    missingLeftLogged = true;
+                    console.log(LOG, 'ľavý stĺpec detailu sa nenašiel, výšku zoznamu nemením');
+                }
+                return;
+            }
+            const top = sc.getBoundingClientRect().top;
+            if (top <= 0) return;
+            const podZoznamom = Math.max(0, left.scrollHeight - sc.offsetHeight);
+            const ciel = Math.round(Math.max(MIN_HEIGHT, W.innerHeight - top - podZoznamom - BOTTOM_GAP));
+            if (Math.abs(ciel - sc.offsetHeight) > 8) sc.style.height = ciel + 'px';
+        }
+
+        function apply() {
+            const list = document.getElementById(LIST_ID);
+            if (!list) return;
+            injectStyles();
+
+            list.querySelectorAll('.sapMLIB').forEach((li) => {
+                const d = itemData(li);
+                if (!d) return;
+                const key = [d.salesOrderNo, d.salesOrderItem, d.productionOrderNo, d.operationNo,
+                             d.sequenceNo, d.materialNo, d.count].join('|');
+                if (li.dataset.pdaPillKey === key && li.querySelector('[data-pda-pill]')) return;
+
+                const stary = li.querySelector('[data-pda-pill]');
+                if (stary) stary.remove();
+                li.appendChild(buildPill(d));
+                li.dataset.pdaPillKey = key;
+                li.classList.add('pda-pill-on');
+            });
+
+            fitHeight();
+        }
+
+        DomWatch.add(apply);
+        W.addEventListener('resize', fitHeight);
+        onReady(apply);
+    }
+
+    /* -------- 3.10 Popis operacie: velke tlacidlo + okno cez obrazovku -------- */
+
+    /*
+     * Popis operacie bol v detaile vysadzany drobnym pismom do uzkeho stlpca a
+     * pri dlhom texte sa nedal precitat. Modul povodny blok skryje a na jeho
+     * miesto da velke tlacidlo; po kliknuti sa popis ukaze cez celu obrazovku
+     * vo velkom pisme. Zatvara sa klikom mimo okna, krizikom alebo Esc.
+     *
+     * Prvky appky (overene v prehliadaci uz v Python verzii):
+     *   WorkcenterDetail--Description_SimpleForm     - cely blok "Popis:"
+     *   WorkcenterDetail--Description_FormattedText  - samotny text
+     */
+    function modOperationDescription() {
+        const FORM_ID = 'WorkcenterDetail--Description_SimpleForm';
+        const TEXT_ID = 'WorkcenterDetail--Description_FormattedText';
+        const BTN_ID = '__pda_opis_button__';
+        const OVERLAY_ID = '__pda_opis_overlay__';
+        const STYLE_ID = '__pda_opis_styles__';
+        const PRAZDNY = 'k tejto operácii nie je popis';
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+.pda-opis-skryty { display:none !important; }
+#${BTN_ID} { display:flex; align-items:center; gap:14px; width:100%; box-sizing:border-box; margin:6px 0 4px;
+  padding:12px 18px; border:2px solid #b9cbe8; border-radius:14px; background:#f4f8ff; cursor:pointer;
+  text-align:left; font:14px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif; color:#13315c;
+  transition:border-color .12s, box-shadow .12s, background .12s; }
+#${BTN_ID}:hover { border-color:#2563eb; background:#eaf2ff; box-shadow:0 4px 14px rgba(16,36,63,.12); }
+#${BTN_ID} .ikona { font-size:30px; line-height:1; flex:0 0 auto; }
+#${BTN_ID} .stred { flex:1 1 auto; min-width:0; }
+#${BTN_ID} .nadpis { display:block; font-size:15px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+#${BTN_ID} .ukazka { display:block; font-size:12.5px; color:#5b6b83; margin-top:2px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#${BTN_ID} .sipka { flex:0 0 auto; font-size:13px; font-weight:700; color:#2563eb; white-space:nowrap; }
+#${BTN_ID}.prazdny { border-color:#e2e6ec; background:#fafbfc; color:#8a93a3; cursor:default; }
+#${BTN_ID}.prazdny .sipka { display:none; }
+#${OVERLAY_ID} { position:fixed; inset:0; background:rgba(10,20,40,.55); z-index:100000;
+  display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; }
+#${OVERLAY_ID} .karta { background:#fff; border-radius:16px; width:min(1150px,94vw); max-height:90vh;
+  display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(16,36,63,.4);
+  font-family:-apple-system,"Segoe UI",Roboto,sans-serif; }
+#${OVERLAY_ID} .hl { display:flex; align-items:center; gap:14px; padding:14px 20px; background:#13315c; color:#fff; }
+#${OVERLAY_ID} .hl .n { font-size:16px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+#${OVERLAY_ID} .hl .z { font-size:13px; opacity:.8; }
+#${OVERLAY_ID} .hl .x { margin-left:auto; background:none; border:0; color:#fff; font-size:30px; line-height:1;
+  cursor:pointer; padding:0 4px; }
+#${OVERLAY_ID} .telo { padding:24px 30px 30px; overflow:auto; font-size:21px; line-height:1.62; color:#17202e;
+  white-space:pre-wrap; word-break:break-word; }
+`;
+            document.head.appendChild(st);
+        }
+
+        function textEl() {
+            return document.getElementById(TEXT_ID) || document.querySelector('[id$="Description_FormattedText"]');
+        }
+
+        function formEl() {
+            const f = document.getElementById(FORM_ID);
+            if (f) return f;
+            const t = textEl();
+            return t ? (t.closest('.sapUiForm') || t.parentElement) : null;
+        }
+
+        function popisText() {
+            const t = textEl();
+            if (!t) return '';
+            return String(t.innerText || t.textContent || '').replace(/ /g, ' ').trim();
+        }
+
+        // cislo zakazky do hlavicky okna (kozmetika - ked sa neda precitat, nic sa nedeje)
+        function zakazkaPopis() {
+            try {
+                const main = W.sap.ui.getCore().byId('Main');
+                const op = main && main.getController().getGlobals().getVar('oSelectedWorkcenterOperation');
+                if (!op || !op.productionOrderNo) return '';
+                return [op.productionOrderNo, op.operationNo].filter(Boolean).join(' / ');
+            } catch (e) { return ''; }
+        }
+
+        function openOverlay() {
+            const text = popisText();
+            if (!text) return;
+            const stary = document.getElementById(OVERLAY_ID);
+            if (stary) stary.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = OVERLAY_ID;
+
+            const karta = document.createElement('div');
+            karta.className = 'karta';
+
+            const hl = document.createElement('div');
+            hl.className = 'hl';
+            const n = document.createElement('span'); n.className = 'n'; n.textContent = 'Popis operácie';
+            const z = document.createElement('span'); z.className = 'z'; z.textContent = zakazkaPopis();
+            const x = document.createElement('button'); x.className = 'x'; x.type = 'button';
+            x.textContent = '×'; x.setAttribute('aria-label', 'Zavrieť');
+            hl.appendChild(n); hl.appendChild(z); hl.appendChild(x);
+
+            const telo = document.createElement('div');
+            telo.className = 'telo';
+            telo.textContent = text;
+
+            karta.appendChild(hl); karta.appendChild(telo);
+            overlay.appendChild(karta);
+
+            const zavri = () => { overlay.remove(); document.removeEventListener('keydown', naEsc); };
+            const naEsc = (e) => { if (e.key === 'Escape') zavri(); };
+
+            x.addEventListener('click', zavri);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) zavri(); });
+            document.addEventListener('keydown', naEsc);
+
+            document.body.appendChild(overlay);
+        }
+
+        function apply() {
+            const form = formEl();
+            if (!form || !form.parentElement) return;
+            injectStyles();
+
+            let btn = document.getElementById(BTN_ID);
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.id = BTN_ID;
+                btn.type = 'button';
+                const ikona = document.createElement('span'); ikona.className = 'ikona'; ikona.textContent = '📄';
+                const stred = document.createElement('span'); stred.className = 'stred';
+                const nadpis = document.createElement('span'); nadpis.className = 'nadpis';
+                nadpis.textContent = 'Popis operácie';
+                const ukazka = document.createElement('span'); ukazka.className = 'ukazka';
+                stred.appendChild(nadpis); stred.appendChild(ukazka);
+                const sipka = document.createElement('span'); sipka.className = 'sipka'; sipka.textContent = 'otvoriť ▸';
+                btn.appendChild(ikona); btn.appendChild(stred); btn.appendChild(sipka);
+                btn.addEventListener('click', openOverlay);
+            }
+            if (btn.parentElement !== form.parentElement || btn.nextElementSibling !== form) {
+                form.parentElement.insertBefore(btn, form);
+            }
+            if (!form.classList.contains('pda-opis-skryty')) form.classList.add('pda-opis-skryty');
+
+            const text = popisText();
+            const ukazka = btn.querySelector('.ukazka');
+            const skratene = text.length > 120 ? text.slice(0, 120) + '…' : text;
+            if (ukazka && ukazka.textContent !== (skratene || PRAZDNY)) {
+                ukazka.textContent = skratene || PRAZDNY;
+            }
+            btn.classList.toggle('prazdny', !text);
+            btn.disabled = !text;
+        }
+
+        DomWatch.add(apply);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.11 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -2408,6 +2764,20 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             desc: 'Zbalí úvodnú obrazovku do kategórií (Assembly, Welding, Machining…). Vidíš len čísla strojov a či pracujú; klik otvorí stroj.',
             def: true,
             run: modWorkcenterOverview,
+        },
+        {
+            id: 'orderList',
+            name: 'Zoznam zákaziek ako pilulky',
+            desc: 'V detaile pracoviska stlačí každú zákazku do jedného kompaktného riadku a zoznam natiahne až po spodok obrazovky — zmestí sa ich viac.',
+            def: true,
+            run: modOrderListPills,
+        },
+        {
+            id: 'opDescription',
+            name: 'Popis operácie na celú obrazovku',
+            desc: 'Namiesto drobného textu veľké tlačidlo „Popis operácie“; po kliknutí sa popis ukáže cez celú obrazovku vo veľkom písme (zavrie sa klikom vedľa alebo Esc).',
+            def: true,
+            run: modOperationDescription,
         },
         {
             id: 'debug',
