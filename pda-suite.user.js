@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.21.2
+// @version      1.22.0
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3901,7 +3901,89 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         onReady(apply);
     }
 
-    /* -------------------- 3.16 Ladiaci vypis ---------------------------- */
+    /* ---------- 3.16 Lavy panel na celu vysku obrazovky ---------- */
+
+    /*
+     * Povodne rozlozenie: cez celu sirku ide panel "Osobny stav", pod nim panel
+     * pracoviska a az v nom vlavo zoznam zakaziek. Zoznam tak zacina az v polovici
+     * obrazovky a hore vlavo je velka prazdna plocha.
+     *
+     * Modul to preskladá bez zasahu do appky - iba polohovanim:
+     *   - lavy stlpec (zoznam zakaziek + graf) sa pripne nalavo od horneho
+     *     baneru (HF logo, meno) az po spodok obrazovky
+     *   - panel "Osobny stav" aj panel pracoviska dostanu zlava odsadenie,
+     *     takze uz nezacinaju pri lavom okraji, ale az za tym stlpcom
+     *
+     * Nic sa nepresuva v DOM, len sa nastavuje poloha - ked sa modul vypne,
+     * appka je presne taka, aka bola.
+     */
+    function modFullHeightLayout() {
+        const LEFT_ID = 'WorkcenterDetail--LeftColumn_FlexBox';
+        const STYLE_ID = '__pda_layout_styles__';
+        const SIRKA = 430;      // sirka laveho stlpca (rovnaka ako v module zoznamu)
+        const MEDZERA = 14;     // medzera medzi stlpcom a obsahom vpravo
+        const SPODOK = 10;      // medzera pod stlpcom
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+.pda-layout-left { position:fixed !important; z-index:3 !important;
+  width:${SIRKA}px !important; max-width:${SIRKA}px !important; flex:0 0 ${SIRKA}px !important;
+  display:flex !important; flex-direction:column !important; box-sizing:border-box !important; }
+.pda-layout-odsad { margin-left:${SIRKA + MEDZERA}px !important; }
+`;
+            document.head.appendChild(st);
+        }
+
+        // panel, v ktorom su tlacidla osobneho stavu (Stretnutia / Prestavka / cakanie)
+        function osobnyPanel(left) {
+            const btn = Array.from(document.querySelectorAll('.statusBtn'))
+                .find((b) => !left.contains(b) && b.closest('.sapMPanel'));
+            return btn ? btn.closest('.sapMPanel') : null;
+        }
+
+        function apply() {
+            const left = document.getElementById(LEFT_ID);
+            if (!left || !left.offsetParent && left.style.position !== 'fixed') {
+                // detail pracoviska nie je otvoreny - nic neriesime
+                if (!left) return;
+            }
+            injectStyles();
+
+            const osobny = osobnyPanel(left);
+            const detail = left.closest('.sapMPanel');
+            if (!osobny || !osobny.parentElement) return;
+
+            // odsadenie oboch panelov vpravo od stlpca
+            [osobny, detail].forEach((p) => {
+                if (p && !p.classList.contains('pda-layout-odsad')) p.classList.add('pda-layout-odsad');
+            });
+
+            /*
+             * Horny okraj stlpca = horny okraj panela "Osobny stav", teda presne
+             * pod banerom s logom HF. Lavy okraj sa berie z rodica panela, nie
+             * zo samotneho panela - ten sme prave posunuli doprava, takze by
+             * sme merali uz posunutu hodnotu.
+             */
+            const rodic = osobny.parentElement.getBoundingClientRect();
+            const hore = Math.round(osobny.getBoundingClientRect().top);
+            const vlavo = Math.round(rodic.left + 8);
+            if (!isFinite(hore) || hore < 0) return;
+
+            if (!left.classList.contains('pda-layout-left')) left.classList.add('pda-layout-left');
+            if (left.style.top !== hore + 'px') left.style.top = hore + 'px';
+            if (left.style.left !== vlavo + 'px') left.style.left = vlavo + 'px';
+            if (left.style.bottom !== SPODOK + 'px') left.style.bottom = SPODOK + 'px';
+        }
+
+        DomWatch.add(apply);
+        W.addEventListener('resize', apply);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.17 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -4018,6 +4100,13 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             desc: 'Tri koláče s časmi SAP (Setup / Machine / Labor) nakloní ako pohľad zboku a pridá tieň. Dáta ani hodnoty sa nemenia, iba vzhľad.',
             def: true,
             run: modDonut3D,
+        },
+        {
+            id: 'fullLeft',
+            name: 'Ľavý panel na celú výšku',
+            desc: 'Zoznam zákaziek s grafom pripne naľavo od horného baneru až po spodok obrazovky; panel Osobný stav a panel pracoviska sa posunú doprava vedľa neho. Nič sa nepresúva, len sa mení poloha.',
+            def: true,
+            run: modFullHeightLayout,
         },
         {
             id: 'debug',
