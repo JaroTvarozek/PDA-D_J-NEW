@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.23.2
+// @version      1.23.3
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -4054,7 +4054,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             { ikona: '👷', nazov: 'Privolanie majstra', popis: 'majster na pracovisko' },
             { ikona: '🚚', nazov: 'Odviezť materiál', popis: 'odvoz hotových dielov' },
             { ikona: '🔧', nazov: 'Privolanie TOOLSHOP', popis: 'nástrojáreň' },
-            { obrazok: LOGO_FLEXUS, nazov: 'Flexus', popis: 'SAP intralogistics' },
+            { obrazok: LOGO_FLEXUS, nazov: 'Flexus', lenObrazok: true },
         ];
 
         function injectStyles() {
@@ -4084,7 +4084,9 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 #${PANEL_ID} .hf-btn .n { display:block; font-size:13px; font-weight:700; }
 #${PANEL_ID} .hf-btn .p { display:block; font-size:11px; color:#6b7c95; margin-top:1px;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#${PANEL_ID} .hf-flexus { width:100%; border-radius:6px; display:block; }
+/* tlacidlo, na ktorom je len logo - bez textu */
+#${PANEL_ID} .hf-btn.hf-obr { justify-content:center; padding:10px 14px; }
+#${PANEL_ID} .hf-btn.hf-obr img { width:100%; max-width:175px; display:block; border-radius:4px; }
 
 #${OVERLAY_ID} { position:fixed; inset:0; background:rgba(10,20,40,.5); z-index:100002;
   display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; }
@@ -4147,6 +4149,18 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'hf-btn';
+
+            // Flexus ma na tlacidle len svoje logo, ziadny text
+            if (p.lenObrazok && p.obrazok) {
+                b.classList.add('hf-obr');
+                const img = document.createElement('img');
+                img.src = p.obrazok;
+                img.alt = p.nazov;
+                b.appendChild(img);
+                b.title = p.nazov;
+                b.addEventListener('click', () => spusti(p));
+                return b;
+            }
 
             const ik = document.createElement('span');
             ik.className = 'ik';
