@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.23.1
+// @version      1.23.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -4066,7 +4066,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
   display:flex; flex-direction:column; gap:8px; box-sizing:border-box;
   font:13px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif; color:#13315c;
   padding:10px; background:#fff; border:1px solid #dfe4ec; border-radius:16px;
-  box-shadow:0 4px 18px rgba(16,36,63,.12); overflow-y:auto; }
+  box-shadow:0 4px 18px rgba(16,36,63,.12); overflow-y:auto; justify-content:flex-start; }
 #${PANEL_ID} .hf-logo { width:100%; border-radius:10px; display:block; }
 #${PANEL_ID} .hf-nadpis { font-size:10.5px; font-weight:800; letter-spacing:.14em;
   text-transform:uppercase; color:#8e9bb0; text-align:center; margin:2px 0 4px; }
@@ -4194,27 +4194,40 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         }
 
         /*
-         * Panel zacina pod panelom "Osobny stav" - tam je vpravo volne miesto.
-         * Vyssie by prekryl tlacidla Stretnutia / Prestavka / cakanie.
+         * Panel patri LEN na obrazovku otvoreneho pracoviska - na uvodnej
+         * obrazovke (prehlad pracovisk) nema co robit. Pozname ju podla toho,
+         * ci je vidiet panel s pracovnym zoznamom.
          */
-        function hornyOkraj() {
-            const btn = Array.from(document.querySelectorAll('.statusBtn'))
-                .find((b) => !b.closest('[id^="WorkcenterDetail--"]'));
-            const panel = btn && btn.closest('.sapMPanel');
-            if (panel) {
-                const r = panel.getBoundingClientRect();
-                if (r.height > 0) return Math.min(300, Math.max(60, Math.round(r.bottom + 8)));
-            }
-            return 150;
+        function panelPracoviska() {
+            const left = document.getElementById('WorkcenterDetail--LeftColumn_FlexBox');
+            const p = left && left.closest('.sapMPanel');
+            if (!p) return null;
+            const r = p.getBoundingClientRect();
+            return r.height > 0 && r.width > 0 ? p : null;
         }
 
         function apply() {
             injectStyles();
-            const panel = document.getElementById(PANEL_ID) || postav();
-            const hore = hornyOkraj();
-            if (Math.abs((parseFloat(panel.style.top) || 0) - hore) > 6) {
-                panel.style.top = hore + 'px';
-                panel.style.maxHeight = 'calc(100vh - ' + (hore + OKRAJ) + 'px)';
+            const detail = panelPracoviska();
+            const panel = document.getElementById(PANEL_ID);
+
+            if (!detail) {
+                if (panel) panel.style.display = 'none';
+                return;
+            }
+
+            const p = panel || postav();
+            if (p.style.display === 'none') p.style.display = '';
+
+            /*
+             * Zaciatok je zarovnany s panelom pracoviska (teda pod tlacidlami
+             * Stretnutia / Prestavka) a dole siaha az k spodku okna, takze
+             * vyplni celu volnu plochu vpravo.
+             */
+            const hore = Math.round(detail.getBoundingClientRect().top);
+            if (hore > 0 && Math.abs((parseFloat(p.style.top) || 0) - hore) > 4) {
+                p.style.top = hore + 'px';
+                p.style.bottom = OKRAJ + 'px';
             }
         }
 
