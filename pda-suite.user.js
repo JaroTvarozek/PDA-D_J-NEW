@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.25.0
+// @version      1.25.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -4170,8 +4170,8 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
   box-shadow:-2px 2px 10px rgba(16,36,63,.25); font:inherit; }
 #${TAB_ID}:hover { background:#1c478a; }
 #${TAB_ID} .sip { font-size:13px; line-height:1; }
-#${TAB_ID} .txt { writing-mode:vertical-rl; text-orientation:mixed; font-size:11px;
-  font-weight:800; letter-spacing:.16em; }
+#${TAB_ID} .txt { writing-mode:vertical-rl; text-orientation:mixed; font-size:10.5px;
+  font-weight:800; letter-spacing:.10em; white-space:nowrap; }
 
 #${OVERLAY_ID} { position:fixed; inset:0; background:rgba(10,20,40,.5); z-index:100002;
   display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; }
@@ -4401,7 +4401,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             t.id = TAB_ID;
             t.type = 'button';
             const sip = document.createElement('span'); sip.className = 'sip';
-            const txt = document.createElement('span'); txt.className = 'txt'; txt.textContent = 'HF';
+            const txt = document.createElement('span'); txt.className = 'txt'; txt.textContent = 'HF SLOVAKIA';
             t.appendChild(sip); t.appendChild(txt);
             t.addEventListener('click', () => {
                 otvoreny = !otvoreny;
