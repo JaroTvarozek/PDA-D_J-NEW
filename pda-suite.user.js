@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.24.0
+// @version      1.24.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3058,7 +3058,10 @@ canvas#${MALY} { max-width:100% !important; }
   border-radius:16px !important; box-shadow:0 24px 70px rgba(16,36,63,.4) !important; }
 #${DIALOG_ID} .sapMDialogSection, #${DIALOG_ID} .sapMDialogScrollCont { height:auto !important;
   max-height:none !important; padding:6px 12px 10px !important; }
-#${DIALOG_ID} canvas#${VELKY} { max-width:100% !important; }
+/* poistka: kym kod graf nedoladi, ma okno aspon nejaku vysku - inak by sa
+   na okamih ukazalo prazdne (vysku platna nastavuje az JS) */
+#${DIALOG_ID} .sapMDialogScrollCont { min-height:300px !important; }
+#${DIALOG_ID} canvas#${VELKY} { max-width:100% !important; min-height:260px !important; }
 `;
             document.head.appendChild(st);
         }
@@ -3318,14 +3321,26 @@ canvas#${MALY} { max-width:100% !important; }
             detailOtvoreny = otvoreny;
             if (!otvoreny) return;
 
-            setTimeout(() => {
+            /*
+             * Graf v okne appka vytvara az po otvoreni dialogu. Predtym sa tu
+             * cakalo pevnych 150 ms a ked este nebol hotovy, doladil ho az
+             * pomaly tik (1,2 s) - okno preto dlho vyzeralo prazdne. Teraz sa
+             * skusa kazdych 60 ms, takze sa chyti hned, ako vznikne.
+             * Globalny `resize` (prekresli vsetky grafy na stranke) ostava uz
+             * len ako zaloha, ked sa instancia vobec nenajde.
+             */
+            let pokus = 0;
+            const skus = () => {
+                if (!detailJeOtvoreny()) return;
                 try {
                     const canvas = document.getElementById(VELKY);
                     const ch = C && canvas ? instancia(C, canvas) : null;
-                    if (ch) upravChart(ch, canvas);
-                    W.dispatchEvent(new Event('resize'));
+                    if (ch) { upravChart(ch, canvas); return; }
                 } catch (e) { /* ignore */ }
-            }, 150);
+                if (++pokus < 40) setTimeout(skus, 60);
+                else { try { W.dispatchEvent(new Event('resize')); } catch (e) { /* ignore */ } }
+            };
+            setTimeout(skus, 30);
         }
 
         function apply() {
