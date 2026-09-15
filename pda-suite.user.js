@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.25.2
+// @version      1.25.3
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3921,19 +3921,20 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             st.id = STYLE_ID;
             st.textContent = `
 /*
- * Posun nadol (translateY aj margin) je preto, ze pri pretoceni do 2D sa kolac
- * "narovna" a stane sa vyssim - bez posunu by prekryl cisla casov nad sebou.
- * Posun rastie so zvacsenim, takze to sedi na malej aj na velkej obrazovke.
+ * Stred otacania a zvacsovania je na HORNOM okraji (50% 0).
+ * Predtym bol v strede, takze zvacseny kolac rastol aj nahor a pri pretoceni
+ * do 2D (kde je najvyssi) siahal na cisla casov nad sebou - posuvanie nadol
+ * to riesilo len cast. Takto rastie vylucne nadol a horny okraj sa nehne,
+ * takze medzera nad kolacom ostava rovnaka pri kazdom zvacseni.
  */
-.${TRIEDA} { transform:perspective(720px) rotateX(38deg) scale(var(--pda3d,1))
-    translateY(calc(var(--pda3d,1) * 12px)) !important;
+.${TRIEDA} { transform:perspective(720px) rotateX(38deg) scale(var(--pda3d,1)) !important;
   filter:${stena} drop-shadow(0 12px 9px rgba(16,36,63,.28)) !important;
-  transform-origin:50% 58% !important; margin-top:14px !important;
+  transform-origin:50% 0% !important; margin-top:22px !important;
   transition:transform .24s ease !important;
   will-change:transform !important; }
 /* pri prechode mysou sa kolac pretoci do skutocneho tvaru - filter ostava rovnaky */
 .${TRIEDA}:hover { transform:perspective(720px) rotateX(0deg)
-    scale(calc(var(--pda3d,1) * 1.06)) translateY(calc(var(--pda3d,1) * 12px)) !important; }
+    scale(calc(var(--pda3d,1) * 1.06)) !important; }
 /* aby naklonený kolac ani jeho stena neboli orezane okrajom boxu */
 .pda-3d-box { overflow:visible !important; }
 `;
