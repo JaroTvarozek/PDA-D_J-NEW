@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.22.1
+// @version      1.22.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -2746,7 +2746,12 @@ body.${BODY_CLASS} #${PANEL_ID} .sapMPanelContent > :not(#${OVERVIEW_ID}) { disp
             const top = sc.getBoundingClientRect().top;
             if (top <= 0) return;
             const podZoznamom = Math.max(0, left.scrollHeight - sc.offsetHeight);
-            const ciel = Math.round(Math.max(MIN_HEIGHT, W.innerHeight - top - podZoznamom - BOTTOM_GAP));
+            // ked je stlpec pripnuty na celu vysku (modul fullLeft), meriame po jeho
+            // skutocny spodok, nie po spodok okna - inak by zoznam koncil privysoko
+            const spodok = left.classList.contains('pda-layout-left')
+                ? left.getBoundingClientRect().bottom
+                : W.innerHeight;
+            const ciel = Math.round(Math.max(MIN_HEIGHT, spodok - top - podZoznamom - BOTTOM_GAP));
             if (Math.abs(ciel - sc.offsetHeight) > 8) sc.style.height = ciel + 'px';
         }
 
@@ -3958,6 +3963,9 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
   width:${SIRKA}px !important; max-width:${SIRKA}px !important; flex:0 0 ${SIRKA}px !important;
   display:flex !important; flex-direction:column !important; box-sizing:border-box !important; }
 .pda-layout-odsad { margin-left:${SIRKA + MEDZERA}px !important; }
+/* box so zoznamom si vezme vsetko volne miesto, graf ostane taky, aky je */
+.pda-layout-left > .pda-left-box:first-of-type { flex:1 1 auto !important; min-height:0 !important; }
+.pda-layout-left > .pda-left-box:last-of-type { flex:0 0 auto !important; }
 `;
             document.head.appendChild(st);
         }
