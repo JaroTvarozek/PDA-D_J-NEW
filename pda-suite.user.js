@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.23.0
+// @version      1.23.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3635,12 +3635,11 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 #${COL_ID} .pda-machine .sapMLabel { font-size:12px !important; color:#5b6b83 !important; }
 
 /* Stavove tlacidla su hore nad boxom so zakazkou a sedia vo vlastnom farebnom
-   banery. Pozor: padding-left sa tu zamerne NEnastavuje - ten dopocitava
-   zarovnanie podla horneho boxu (inline styl). Keby tu bol s !important,
-   zarovnanie by ho nikdy neprebilo a pocitalo by donekonecna. */
+   banery. Zarovnanie s boxom ide cez margin-left a max-width (inline styl),
+   takze vnutorne odsadenie tu uz pokojne byt moze. */
 #${STATUS_ID} { background:linear-gradient(180deg,#eef3fa 0%,#dde7f4 100%) !important;
   border:1px solid #c9d7ea !important; border-radius:14px !important;
-  padding-top:8px !important; padding-bottom:8px !important; padding-right:10px !important;
+  padding:8px 10px !important;
   box-shadow:0 2px 8px rgba(16,36,63,.10) !important; margin-bottom:10px !important;
   box-sizing:border-box !important; }
 
@@ -3709,9 +3708,20 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             const ciel = form.getBoundingClientRect().left;
             if (!ciel) return;
 
+            /*
+             * Baner s tlacidlami zarovnavame CELY (jeho vlastny lavy aj pravy
+             * okraj) s boxom pod nim - nie prve tlacidlo v nom. Odkedy ma baner
+             * viditelne pozadie, vycnieval by vlavo, aj keby tlacidlo sedelo.
+             */
             const stav = document.getElementById(STATUS_ID);
-            const prvy = stav && stav.querySelector('.statusBtn');
-            if (prvy) posun(stav, 'paddingLeft', ciel - prvy.getBoundingClientRect().left);
+            if (stav) {
+                const sr = stav.getBoundingClientRect();
+                posun(stav, 'marginLeft', ciel - sr.left);
+                const sirkaBanera = Math.round(form.getBoundingClientRect().right - Math.max(sr.left, ciel));
+                if (sirkaBanera > 200 && Math.abs(sirkaBanera - sr.width) > 2) {
+                    stav.style.maxWidth = sirkaBanera + 'px';
+                }
+            }
 
             const opis = document.getElementById('__pda_opis_button__');
             if (!opis) return;
