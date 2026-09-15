@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.22.0
+// @version      1.22.1
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -3586,6 +3586,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         const COL_ID = '__pda_detail_rightcol__';
         const MACHINE_ID = '__pda_detail_machine__';
         const STATUS_ID = 'WorkcenterDetail--Order_Status_Flexbox';
+        const ORDER_ID = 'WorkcenterDetail--Order_FlexBox';
 
         function injectStyles() {
             if (document.getElementById(STYLE_ID)) return;
@@ -3627,6 +3628,16 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
   flex:0 0 auto; margin-left:auto; padding-left:12px; }
 #${COL_ID} .pda-machine { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 #${COL_ID} .pda-machine .sapMLabel { font-size:12px !important; color:#5b6b83 !important; }
+
+/* Stavove tlacidla su hore nad boxom so zakazkou a sedia vo vlastnom farebnom
+   banery. Pozor: padding-left sa tu zamerne NEnastavuje - ten dopocitava
+   zarovnanie podla horneho boxu (inline styl). Keby tu bol s !important,
+   zarovnanie by ho nikdy neprebilo a pocitalo by donekonecna. */
+#${STATUS_ID} { background:linear-gradient(180deg,#eef3fa 0%,#dde7f4 100%) !important;
+  border:1px solid #c9d7ea !important; border-radius:14px !important;
+  padding-top:8px !important; padding-bottom:8px !important; padding-right:10px !important;
+  box-shadow:0 2px 8px rgba(16,36,63,.10) !important; margin-bottom:10px !important;
+  box-sizing:border-box !important; }
 
 /* bezici cinnost vpravo (Vyroba - Vyroba / meno / cas / Zastavit) ako jemna pilulka */
 .pda-aktivita { border-radius:14px !important; background:#e9f6ed !important;
@@ -3787,10 +3798,24 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             if (Math.abs(nove - teraz) > 1) el.style[vlastnost] = nove + 'px';
         }
 
+        /*
+         * Riadok stavovych tlacidiel patri nad box so zakazkou, materialom
+         * a vyrobnou zakazkou - operator ich ma mat hned pod nazvom pracoviska.
+         * V appke su pod nim, takze ich posunieme na zaciatok Order_FlexBox.
+         */
+        function tlacidlaHore() {
+            const stav = document.getElementById(STATUS_ID);
+            const order = document.getElementById(ORDER_ID);
+            if (!stav || !order || stav.parentElement !== order) return;
+            if (order.firstElementChild === stav) return;
+            order.insertBefore(stav, order.firstElementChild);
+        }
+
         function apply() {
             const header = document.getElementById(HEADER_ID);
             if (!header) return;
             injectStyles();
+            tlacidlaHore();
 
             const col = pravyStlpec(header);
 
