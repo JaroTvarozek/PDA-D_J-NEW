@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.25.3
+// @version      1.25.4
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -4170,9 +4170,15 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 #${PANEL_ID} .hf-btn.hf-obr { justify-content:center; padding:10px 14px; }
 #${PANEL_ID} .hf-btn.hf-obr img { width:100%; max-width:175px; display:block; border-radius:4px; }
 
-#${PANEL_ID}.skryty { display:none !important; }
+/* Zatvaranie a otvaranie je posunom za pravy okraj, nie zmiznutim - je tak
+   vidiet, kam sa panel podel. Viditelnost sa prepne az na konci prechodu,
+   aby schovany panel nechytal kliknutia. */
+#${PANEL_ID} { transition:transform .28s ease, opacity .28s ease, visibility 0s linear .28s; }
+#${PANEL_ID}.skryty { transform:translateX(calc(100% + ${OKRAJ + 6}px)); opacity:0;
+  visibility:hidden; pointer-events:none; }
 /* uzky pasik na pravom okraji - klikom sa panel vysunie alebo schova */
 #${TAB_ID} { position:fixed; z-index:5; width:26px; padding:14px 0; cursor:pointer;
+  transition:right .28s ease;
   display:flex; flex-direction:column; align-items:center; gap:8px;
   background:#13315c; color:#fff; border:0; border-radius:10px 0 0 10px;
   box-shadow:-2px 2px 10px rgba(16,36,63,.25); font:inherit; }
