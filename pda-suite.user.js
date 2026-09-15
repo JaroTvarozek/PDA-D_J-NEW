@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.22.2
+// @version      1.22.3
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -4137,8 +4137,8 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         {
             id: 'fullLeft',
             name: 'Ľavý panel na celú výšku',
-            desc: 'Zoznam zákaziek s grafom pripne naľavo od horného baneru až po spodok obrazovky; panel Osobný stav a panel pracoviska sa posunú doprava vedľa neho. Nič sa nepresúva, len sa mení poloha.',
-            def: true,
+            desc: '⚠️ Rozpracované — zatiaľ rozhadzuje rozloženie (stĺpec sa pripne na zlé miesto a panel pracoviska sa zosype). Nezapínať, kým to nedoladíme.',
+            def: false,
             run: modFullHeightLayout,
         },
         {
