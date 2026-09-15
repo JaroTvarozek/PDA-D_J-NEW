@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite (HF Slovakia)
 // @namespace    http://tampermonkey.net/
-// @version      1.24.1
+// @version      1.24.2
 // @description  Vsetky vylepsenia PDA v jednom skripte + panel na zapinanie a vypinanie jednotlivych modulov
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js
@@ -4085,7 +4085,10 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             const st = document.createElement('style');
             st.id = STYLE_ID;
             st.textContent = `
-#${PANEL_ID} { position:fixed; right:${OKRAJ}px; width:${SIRKA}px; z-index:900;
+/* Nizke z-index je zamerne: panel ma byt nad obsahom stranky, ale POD
+   oknami appky (detail grafu, tabulka stavov). S vysokym cislom prekryval
+   otvorene okno a nestmavil sa spolu so zvyskom stranky. */
+#${PANEL_ID} { position:fixed; right:${OKRAJ}px; width:${SIRKA}px; z-index:5;
   display:flex; flex-direction:column; gap:8px; box-sizing:border-box;
   font:13px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif; color:#13315c;
   padding:10px; background:#fff; border:1px solid #dfe4ec; border-radius:16px;
