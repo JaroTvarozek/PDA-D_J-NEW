@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite NEW Design (HF Slovakia)
 // @namespace    http://tampermonkey.net/pda-new-design
-// @version      2.1.2
+// @version      2.1.3
 // @description  NOVY DIZAJN PDA - samostatna vetva vyvoja. Instaluje sa vedla povodneho skriptu, v Tampermonkey nechaj zapnuty vzdy len JEDEN z nich.
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/ver.2/new-design.user.js
@@ -4576,6 +4576,9 @@ body.${BODY_CLASS} .statusBtn .sapMBtnInner[data-nd-pod=""]::after { display:non
 /* ---------- nadpisy sekcii ---------- */
 .nd-nadpis { font:800 12px/1.3 -apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:.14em;
   text-transform:uppercase; color:#4a6285; margin:6px 0 8px 2px; }
+.nd-v-riadku { flex:0 0 100% !important; width:100% !important; box-sizing:border-box; margin:2px 0 6px 6px !important; }
+body.${BODY_CLASS} #WorkcenterDetail--Order_Status_Flexbox,
+body.${BODY_CLASS} #WorkcenterDetail--OrderHeader_FlexBox { flex-wrap:wrap !important; }
 
 /* ---------- pravy stlpec appky ---------- */
 body.${BODY_CLASS} #WorkcenterDetail--Order_Status_Flexbox {
@@ -4601,8 +4604,7 @@ body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
         function hornyPruh() {
             if (document.getElementById(HEADER_ID)) return;
             const odhlasenie = document.querySelector('[id$="Button_Logout"]');
-            const pruh = odhlasenie && (odhlasenie.closest('.sapMIBar') || odhlasenie.closest('.sapMBar') ||
-                                        odhlasenie.closest('.sapMTB'));
+            const pruh = odhlasenie && odhlasenie.closest('.sapMIBar, .sapMBar, .sapMTB, .sapMOTB, .sapMShellHead, header');
             if (!pruh) return;
 
             const box = document.createElement('div');
@@ -4642,15 +4644,27 @@ body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
 
         /* --- nadpisy sekcii --- */
 
-        function nadpis(pred, text, znacka) {
-            if (!pred || !pred.parentElement) return;
-            const predch = pred.previousElementSibling;
-            if (predch && predch.dataset && predch.dataset.ndNadpis === znacka) return;
-            const d = document.createElement('div');
-            d.className = 'nd-nadpis';
-            d.dataset.ndNadpis = znacka;
-            d.textContent = text;
-            pred.parentElement.insertBefore(d, pred);
+        /*
+         * Nadpis ide DOVNUTRA kontajnera ako jeho prvy riadok (flex-basis 100 %),
+         * nie ako sused pred neho. Sused sa v 2.1.2 vkladal dokola: modul
+         * hlavicky presuva riadok tlacidiel stale na prve miesto, cim sa nadpis
+         * dostal za neho, kontrola "je pred nim nadpis?" zlyhala a vlozil sa
+         * dalsi - a tak stale, pri kazdom tiku. Vnutri kontajnera sa presun
+         * kontajnera nadpisu nedotkne.
+         */
+        function nadpisDo(kontajner, text, znacka) {
+            if (!kontajner) return;
+            let d = null;
+            for (const ch of kontajner.children) {
+                if (ch.dataset && ch.dataset.ndNadpis === znacka) { d = ch; break; }
+            }
+            if (!d) {
+                d = document.createElement('div');
+                d.className = 'nd-nadpis nd-v-riadku';
+                d.dataset.ndNadpis = znacka;
+                d.textContent = text;
+            }
+            if (kontajner.firstElementChild !== d) kontajner.insertBefore(d, kontajner.firstElementChild);
         }
 
         /* --- patka --- */
@@ -4683,10 +4697,8 @@ body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
                 try { kartaTlacidla(b); } catch (e) { /* kozmetika nesmie nic zhodit */ }
             });
 
-            const stav = document.getElementById('WorkcenterDetail--Order_Status_Flexbox');
-            if (stav) nadpis(stav, 'Stav operácie', 'stav');
-            const hlavicka = document.getElementById('WorkcenterDetail--OrderHeader_FlexBox');
-            if (hlavicka) nadpis(hlavicka, 'Zákazka a materiál', 'zakazka');
+            nadpisDo(document.getElementById('WorkcenterDetail--Order_Status_Flexbox'), 'Stav operácie', 'stav');
+            nadpisDo(document.getElementById('WorkcenterDetail--OrderHeader_FlexBox'), 'Zákazka a materiál', 'zakazka');
         }
 
         DomWatch.add(apply);
