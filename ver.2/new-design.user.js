@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite NEW Design (HF Slovakia)
 // @namespace    http://tampermonkey.net/pda-new-design
-// @version      2.1.1
+// @version      2.1.2
 // @description  NOVY DIZAJN PDA - samostatna vetva vyvoja. Instaluje sa vedla povodneho skriptu, v Tampermonkey nechaj zapnuty vzdy len JEDEN z nich.
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/ver.2/new-design.user.js
@@ -4551,20 +4551,27 @@ body.${BODY_CLASS} .sapMPanelHdr .sapMTitle, body.${BODY_CLASS} .sapMPanelHdr .s
 #${HEADER_ID} .nd-h-n { display:block; font-size:16px; font-weight:800; color:#13315c; letter-spacing:.02em; }
 #${HEADER_ID} .nd-h-s { display:block; font-size:10.5px; color:#7d8ea8; }
 
-/* ---------- stavove tlacidla ako karty s ikonou ---------- */
+/* ---------- stavove tlacidla ako karty s ikonou ----------
+   Vnutro tlacidla (UI5 <bdi id="...-BDI-content">) sa NESMIE menit - UI5 ho
+   potrebuje pri stlaceni a v 2.1.0 to tlacidla odstavilo. Ikona a podnadpis
+   su preto len pseudo-prvky ::before / ::after na obale .sapMBtnInner a text
+   beru z data-* atributov, ktore na obal doplna JS. Skutocny text tlacidla
+   zostava netknuty v .sapMBtnContent. */
 body.${BODY_CLASS} .statusBtn { border-radius:16px !important; border:0 !important;
   box-shadow:0 6px 16px rgba(16,36,63,.18) !important; min-width:190px !important; }
-body.${BODY_CLASS} .statusBtn .sapMBtnInner { padding:14px 18px !important; border-radius:16px !important; }
-body.${BODY_CLASS} .statusBtn .sapMBtnContent { display:flex !important; align-items:center !important;
-  gap:12px !important; width:100% !important; }
-body.${BODY_CLASS} .statusBtn .nd-ik { flex:0 0 auto; width:40px; height:40px; border-radius:12px;
-  background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center;
-  font-size:19px; line-height:1; }
-body.${BODY_CLASS} .statusBtn .nd-tx { flex:1 1 auto; min-width:0; text-align:left; }
-body.${BODY_CLASS} .statusBtn .nd-n { display:block; font-size:15px; font-weight:800; line-height:1.2;
-  white-space:nowrap; }
-body.${BODY_CLASS} .statusBtn .nd-p { display:block; font-size:12px; opacity:.85; line-height:1.25;
-  white-space:nowrap; font-weight:600; }
+body.${BODY_CLASS} .statusBtn .sapMBtnInner { padding:12px 18px 12px 14px !important; border-radius:16px !important;
+  display:grid !important; grid-template-columns:40px minmax(0,1fr) !important;
+  grid-template-rows:auto auto !important; column-gap:12px !important; align-items:center !important;
+  height:100% !important; box-sizing:border-box !important; }
+body.${BODY_CLASS} .statusBtn .sapMBtnInner::before { content:attr(data-nd-ik); grid-column:1; grid-row:1 / span 2;
+  width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,.22);
+  display:flex; align-items:center; justify-content:center; font-size:19px; line-height:1; }
+body.${BODY_CLASS} .statusBtn .sapMBtnContent { grid-column:2 !important; grid-row:1 !important;
+  justify-content:flex-start !important; text-align:left !important; font-size:15px !important;
+  font-weight:800 !important; line-height:1.2 !important; white-space:nowrap !important; }
+body.${BODY_CLASS} .statusBtn .sapMBtnInner::after { content:attr(data-nd-pod); grid-column:2; grid-row:2;
+  text-align:left; font-size:12px; opacity:.85; line-height:1.25; white-space:nowrap; font-weight:600; }
+body.${BODY_CLASS} .statusBtn .sapMBtnInner[data-nd-pod=""]::after { display:none; }
 
 /* ---------- nadpisy sekcii ---------- */
 .nd-nadpis { font:800 12px/1.3 -apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:.14em;
@@ -4615,27 +4622,22 @@ body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
 
         /* --- stavove tlacidla: ikona + nazov + podnadpis --- */
 
+        /*
+         * Len data-* atributy na obale .sapMBtnInner - ikonu a podnadpis z nich
+         * vykresli CSS (::before / ::after). Do vnutra tlacidla sa nesiaha,
+         * takze stlacenie funguje presne ako v povodnej appke.
+         * Atributy nespustia DomWatch (sleduje len pridavanie/mazanie prvkov),
+         * cyklus teda nehrozi; po prekresleni UI5 sa len znovu doplnia.
+         */
         function kartaTlacidla(btn) {
+            const inner = btn.querySelector('.sapMBtnInner');
             const content = btn.querySelector('.sapMBtnContent');
-            if (!content) return;
-
-            const nase = content.querySelector('.nd-n');
-            const text = (nase ? nase.textContent : content.textContent || '').trim();
+            if (!inner || !content) return;
+            const text = (content.textContent || '').trim();
             if (!text) return;
-            if (nase && btn.dataset.pdaKarta === text) return;   // uz hotove a nezmenilo sa
-
             const k = kartaPre(text);
-            content.textContent = '';
-            const ik = document.createElement('span'); ik.className = 'nd-ik'; ik.textContent = k.ikona;
-            const tx = document.createElement('span'); tx.className = 'nd-tx';
-            const n = document.createElement('span'); n.className = 'nd-n'; n.textContent = text;
-            tx.appendChild(n);
-            if (k.pod) {
-                const p = document.createElement('span'); p.className = 'nd-p'; p.textContent = k.pod;
-                tx.appendChild(p);
-            }
-            content.appendChild(ik); content.appendChild(tx);
-            btn.dataset.pdaKarta = text;
+            if (inner.getAttribute('data-nd-ik') !== k.ikona) inner.setAttribute('data-nd-ik', k.ikona);
+            if (inner.getAttribute('data-nd-pod') !== k.pod) inner.setAttribute('data-nd-pod', k.pod);
         }
 
         /* --- nadpisy sekcii --- */
