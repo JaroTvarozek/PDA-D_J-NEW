@@ -12,9 +12,19 @@ pracoviskami, načítanie výkresov, obsluhu skenera a čítačky kariet.
 
 **[▶ Inštalovať PDA Suite](https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/pda-suite.user.js)**
 
-`pda-suite.user.js` obsahuje **všetkých 13 modulov v jednom súbore**. Nainštaluješ
+`pda-suite.user.js` obsahuje **všetkých 17 modulov v jednom súbore**. Nainštaluješ
 ho raz a jednotlivé moduly si potom zapínaš a vypínaš v nastaveniach — nemusíš
 nič odinštalovávať ani doinštalovávať.
+
+### Dve vetvy — pôvodná a nový dizajn
+
+| | Súbor | Názov v Tampermonkey |
+|---|---|---|
+| **Pôvodná** (používa sa vo výrobe) | `pda-suite.user.js` | PDA Suite (HF Slovakia) |
+| **Nový dizajn** (vo vývoji) | `ver.2/new-design.user.js` | PDA Suite NEW Design (HF Slovakia) |
+
+Sú to dva samostatné skripty — aktualizujú sa nezávisle a v Tampermonkey sa dajú zapínať
+zvlášť. **Vždy nechaj zapnutý iba jeden.** Podrobnosti a prenos nastavení: [`ver.2/README.md`](ver.2/README.md).
 
 ### Predpoklady (raz za počítač)
 
