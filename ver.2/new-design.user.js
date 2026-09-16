@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite NEW Design (HF Slovakia)
 // @namespace    http://tampermonkey.net/pda-new-design
-// @version      2.0.0
+// @version      2.1.0
 // @description  NOVY DIZAJN PDA - samostatna vetva vyvoja. Instaluje sa vedla povodneho skriptu, v Tampermonkey nechaj zapnuty vzdy len JEDEN z nich.
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/ver.2/new-design.user.js
@@ -4472,7 +4472,219 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         onReady(apply);
     }
 
-    /* -------------------- 3.18 Ladiaci vypis ---------------------------- */
+    /* ---------- 3.18 NOVY DIZAJN (vetva ver.2) ---------- */
+
+    /*
+     * Prezlecenie PDA do dizajnu HF Slovakia podla navrhu z 2026-09-16.
+     *
+     * Zasada, na ktorej je to postavene: NIC z appky sa nemaze ani nevybera
+     * z toku stranky. Vsetko su len styly a par vlastnych prvkov vlozenych
+     * medzi povodne. Tlacidla, prepinace a zoznamy ostavaju tie ISTE prvky
+     * appky, takze vsetky volania a funkcie fungujú presne ako predtym -
+     * menia sa iba farby, tvary a popisy.
+     * (Pokus pripnut lavy stlpec cez position:fixed vo vetve 1.22 rozlozenie
+     * rozhodil - preto sa tu nic nepolohuje natvrdo.)
+     *
+     * Cast 1: pozadie a karty, horny pruh s logom, stavove tlacidla ako karty
+     * s ikonou a podnadpisom, nadpisy sekcii, patka.
+     */
+    function modNewDesign() {
+        const STYLE_ID = '__pda_nd_styles__';
+        const BODY_CLASS = 'pda-nd';
+        const HEADER_ID = '__pda_nd_header__';
+        const FOOTER_ID = '__pda_nd_footer__';
+        const LOGO_HF_MALE = 'data:image/jpeg;base64,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';
+
+        // text tlacidla -> ikona a podnadpis (hlada sa podla zaciatku textu)
+        const KARTY = [
+            ['výroba',        '▶', 'aktívna'],
+            ['upinanie',      '🔧', 'príprava'],
+            ['upínanie',      '🔧', 'príprava'],
+            ['upratovanie',   '🧹', 'stola'],
+            ['meranie',       '📐', 'v procese'],
+            ['programovanie', '💻', 'CNC'],
+            ['chyba',         '⚠', 'prestoj'],
+            ['údržba',        '🛠', 'stroja'],
+            ['udrzba',        '🛠', 'stroja'],
+            ['stretnutia',    '👥', ''],
+            ['prestávka',     '☕', ''],
+            ['čakanie',       '⏳', ''],
+        ];
+
+        function kartaPre(text) {
+            const t = String(text || '').toLowerCase();
+            for (const [k, ik, pod] of KARTY) {
+                if (t.indexOf(k) !== -1) return { ikona: ik, pod };
+            }
+            return { ikona: '●', pod: '' };
+        }
+
+        function injectStyles() {
+            if (document.getElementById(STYLE_ID)) return;
+            const st = document.createElement('style');
+            st.id = STYLE_ID;
+            st.textContent = `
+/* ---------- pozadie a zakladne karty ---------- */
+body.${BODY_CLASS}, body.${BODY_CLASS} .sapUiBody, body.${BODY_CLASS} .sapMShell,
+body.${BODY_CLASS} .sapMPage, body.${BODY_CLASS} .sapMPageBgStandard {
+  background:linear-gradient(135deg,#eaf2fb 0%,#dbe8f7 55%,#e9f1fb 100%) !important; }
+body.${BODY_CLASS} .sapMPanel { background:#fff !important; border:1px solid #e3ebf5 !important;
+  border-radius:18px !important; box-shadow:0 4px 18px rgba(16,36,63,.08) !important;
+  margin:10px 12px !important; box-sizing:border-box !important; }
+body.${BODY_CLASS} .sapMPanelHdr, body.${BODY_CLASS} .sapMPanelHeaderTB {
+  background:transparent !important; border:0 !important; }
+body.${BODY_CLASS} .sapMPanelHdr .sapMTitle, body.${BODY_CLASS} .sapMPanelHdr .sapMText {
+  font-size:12px !important; font-weight:800 !important; letter-spacing:.14em !important;
+  text-transform:uppercase !important; color:#4a6285 !important; }
+
+/* ---------- horny pruh s logom HF Slovakia ---------- */
+#${HEADER_ID} { display:flex; align-items:center; gap:12px; padding:0 14px 0 4px; flex:0 0 auto; }
+#${HEADER_ID} img { height:34px; display:block; }
+#${HEADER_ID} .nd-h-txt { line-height:1.15; }
+#${HEADER_ID} .nd-h-n { display:block; font-size:16px; font-weight:800; color:#13315c; letter-spacing:.02em; }
+#${HEADER_ID} .nd-h-s { display:block; font-size:10.5px; color:#7d8ea8; }
+
+/* ---------- stavove tlacidla ako karty s ikonou ---------- */
+body.${BODY_CLASS} .statusBtn { border-radius:16px !important; border:0 !important;
+  box-shadow:0 6px 16px rgba(16,36,63,.18) !important; min-width:190px !important; }
+body.${BODY_CLASS} .statusBtn .sapMBtnInner { padding:14px 18px !important; border-radius:16px !important; }
+body.${BODY_CLASS} .statusBtn .sapMBtnContent { display:flex !important; align-items:center !important;
+  gap:12px !important; width:100% !important; }
+body.${BODY_CLASS} .statusBtn .nd-ik { flex:0 0 auto; width:40px; height:40px; border-radius:12px;
+  background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center;
+  font-size:19px; line-height:1; }
+body.${BODY_CLASS} .statusBtn .nd-tx { flex:1 1 auto; min-width:0; text-align:left; }
+body.${BODY_CLASS} .statusBtn .nd-n { display:block; font-size:15px; font-weight:800; line-height:1.2;
+  white-space:nowrap; }
+body.${BODY_CLASS} .statusBtn .nd-p { display:block; font-size:12px; opacity:.85; line-height:1.25;
+  white-space:nowrap; font-weight:600; }
+
+/* ---------- nadpisy sekcii ---------- */
+.nd-nadpis { font:800 12px/1.3 -apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:.14em;
+  text-transform:uppercase; color:#4a6285; margin:6px 0 8px 2px; }
+
+/* ---------- pravy stlpec appky ---------- */
+body.${BODY_CLASS} #WorkcenterDetail--Order_Status_Flexbox {
+  background:transparent !important; border:0 !important; box-shadow:none !important;
+  padding-top:2px !important; }
+
+/* ---------- patka ---------- */
+#${FOOTER_ID} { position:fixed; left:0; right:0; bottom:0; height:34px; z-index:4;
+  display:flex; align-items:center; gap:10px; padding:0 18px; box-sizing:border-box;
+  background:rgba(255,255,255,.82); backdrop-filter:blur(6px);
+  border-top:1px solid #e3ebf5; font:12px/1 -apple-system,"Segoe UI",Roboto,sans-serif;
+  color:#7d8ea8; }
+#${FOOTER_ID} img { height:18px; display:block; }
+#${FOOTER_ID} .nd-f-n { font-weight:800; color:#13315c; letter-spacing:.04em; }
+#${FOOTER_ID} .nd-f-r { margin-left:auto; }
+body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
+`;
+            document.head.appendChild(st);
+        }
+
+        /* --- horny pruh: logo a nazov vedla povodnych ovladacich prvkov --- */
+
+        function hornyPruh() {
+            if (document.getElementById(HEADER_ID)) return;
+            const odhlasenie = document.querySelector('[id$="Button_Logout"]');
+            const pruh = odhlasenie && (odhlasenie.closest('.sapMIBar') || odhlasenie.closest('.sapMBar') ||
+                                        odhlasenie.closest('.sapMTB'));
+            if (!pruh) return;
+
+            const box = document.createElement('div');
+            box.id = HEADER_ID;
+            const img = document.createElement('img');
+            img.src = LOGO_HF_MALE;
+            img.alt = 'HF Slovakia';
+            const txt = document.createElement('span');
+            txt.className = 'nd-h-txt';
+            const n = document.createElement('span'); n.className = 'nd-h-n'; n.textContent = 'HF SLOVAKIA';
+            const s = document.createElement('span'); s.className = 'nd-h-s';
+            s.textContent = 'Better Parts. A Cleaner Tomorrow.';
+            txt.appendChild(n); txt.appendChild(s);
+            box.appendChild(img); box.appendChild(txt);
+            pruh.insertBefore(box, pruh.firstChild);
+        }
+
+        /* --- stavove tlacidla: ikona + nazov + podnadpis --- */
+
+        function kartaTlacidla(btn) {
+            const content = btn.querySelector('.sapMBtnContent');
+            if (!content) return;
+
+            const nase = content.querySelector('.nd-n');
+            const text = (nase ? nase.textContent : content.textContent || '').trim();
+            if (!text) return;
+            if (nase && btn.dataset.pdaKarta === text) return;   // uz hotove a nezmenilo sa
+
+            const k = kartaPre(text);
+            content.textContent = '';
+            const ik = document.createElement('span'); ik.className = 'nd-ik'; ik.textContent = k.ikona;
+            const tx = document.createElement('span'); tx.className = 'nd-tx';
+            const n = document.createElement('span'); n.className = 'nd-n'; n.textContent = text;
+            tx.appendChild(n);
+            if (k.pod) {
+                const p = document.createElement('span'); p.className = 'nd-p'; p.textContent = k.pod;
+                tx.appendChild(p);
+            }
+            content.appendChild(ik); content.appendChild(tx);
+            btn.dataset.pdaKarta = text;
+        }
+
+        /* --- nadpisy sekcii --- */
+
+        function nadpis(pred, text, znacka) {
+            if (!pred || !pred.parentElement) return;
+            const predch = pred.previousElementSibling;
+            if (predch && predch.dataset && predch.dataset.ndNadpis === znacka) return;
+            const d = document.createElement('div');
+            d.className = 'nd-nadpis';
+            d.dataset.ndNadpis = znacka;
+            d.textContent = text;
+            pred.parentElement.insertBefore(d, pred);
+        }
+
+        /* --- patka --- */
+
+        function patka() {
+            if (document.getElementById(FOOTER_ID)) return;
+            const f = document.createElement('div');
+            f.id = FOOTER_ID;
+            const img = document.createElement('img');
+            img.src = LOGO_HF_MALE;
+            img.alt = '';
+            const n = document.createElement('span'); n.className = 'nd-f-n'; n.textContent = 'HF SLOVAKIA';
+            const s = document.createElement('span'); s.textContent = 'Better Parts. A Cleaner Tomorrow.';
+            const r = document.createElement('span'); r.className = 'nd-f-r';
+            let verzia = '';
+            try { verzia = GM_info && GM_info.script ? 'v' + GM_info.script.version : ''; } catch (e) { /* ignore */ }
+            r.textContent = ('PDA App Extension ' + verzia).trim() + ' · Powered by HF Slovakia';
+            f.appendChild(img); f.appendChild(n); f.appendChild(s); f.appendChild(r);
+            document.body.appendChild(f);
+        }
+
+        function apply() {
+            injectStyles();
+            if (!document.body.classList.contains(BODY_CLASS)) document.body.classList.add(BODY_CLASS);
+
+            hornyPruh();
+            patka();
+
+            document.querySelectorAll('.statusBtn').forEach((b) => {
+                try { kartaTlacidla(b); } catch (e) { /* kozmetika nesmie nic zhodit */ }
+            });
+
+            const stav = document.getElementById('WorkcenterDetail--Order_Status_Flexbox');
+            if (stav) nadpis(stav, 'Stav operácie', 'stav');
+            const hlavicka = document.getElementById('WorkcenterDetail--OrderHeader_FlexBox');
+            if (hlavicka) nadpis(hlavicka, 'Zákazka a materiál', 'zakazka');
+        }
+
+        DomWatch.add(apply);
+        onReady(apply);
+    }
+
+    /* -------------------- 3.19 Ladiaci vypis ---------------------------- */
 
     function modDebugLog() {
         XhrBus.subscribe((ev) => {
@@ -4603,6 +4815,13 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
             desc: 'Zvislý panel pri pravom okraji s pripravovanými funkciami HF Slovakia (CHIPS, privolanie majstra, odvoz materiálu, TOOLSHOP, Flexus). Tlačidlá zatiaľ ukážu okno „vo vývoji“.',
             def: true,
             run: modHfMenu,
+        },
+        {
+            id: 'newDesign',
+            name: 'Nový dizajn HF Slovakia',
+            desc: 'Prezlečenie celej aplikácie: svetlomodré pozadie, biele karty, horný pruh s logom, stavové tlačidlá s ikonou a podnadpisom, nadpisy sekcií, pätka. Všetky pôvodné ovládacie prvky ostávajú — menia sa len farby a tvary.',
+            def: true,
+            run: modNewDesign,
         },
         {
             id: 'debug',
