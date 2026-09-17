@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PDA Suite NEW Design (HF Slovakia)
 // @namespace    http://tampermonkey.net/pda-new-design
-// @version      2.1.3
+// @version      2.2.0
 // @description  NOVY DIZAJN PDA - samostatna vetva vyvoja. Instaluje sa vedla povodneho skriptu, v Tampermonkey nechaj zapnuty vzdy len JEDEN z nich.
 // @author       Gabris, Tvarozek
 // @updateURL    https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/ver.2/new-design.user.js
@@ -4124,12 +4124,13 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
         const FOTO_ELA = 'data:image/jpeg;base64,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';
 
         const POLOZKY = [
-            { ikona: '📐', nazov: 'Výkresy', popis: 'nájsť podľa čísla', akcia: 'vykresy' },
-            { ikona: '🌀', nazov: 'CHIPS', popis: 'vývoz špon' },
-            { ikona: '👷', nazov: 'Privolanie majstra', popis: 'majster na pracovisko' },
-            { ikona: '🚚', nazov: 'Odviezť materiál', popis: 'odvoz hotových dielov' },
-            { ikona: '🔧', nazov: 'Privolanie TOOLSHOP', popis: 'nástrojáreň' },
-            { foto: FOTO_ELA, nazov: 'Ela', popis: 'elektronická asistentka (AI)' },
+            // nazvy a podnadpisy podla navrhu dizajnu z 2026-09-16
+            { ikona: '📄', nazov: 'Výkresy', popis: 'archív', akcia: 'vykresy' },
+            { ikona: '⚙', nazov: 'CHIPS', popis: 'nástroje' },
+            { ikona: '👤', nazov: 'Majster', popis: 'prihlasovanie' },
+            { ikona: '📦', nazov: 'Materiál', popis: 'objednať' },
+            { ikona: '🔧', nazov: 'TOOLSHOP', popis: 'výdaj' },
+            { foto: FOTO_ELA, nazov: 'Ela', popis: 'dokumentácia' },
             { obrazok: LOGO_FLEXUS, nazov: 'Flexus', lenObrazok: true },
         ];
 
@@ -4387,7 +4388,7 @@ ${DIALOG_SEL} .pda-col-material { min-width:330px !important; }
 
             const nad = document.createElement('div');
             nad.className = 'hf-nadpis';
-            nad.textContent = 'Funkcie HF Slovakia';
+            nad.textContent = 'PDA';
             panel.appendChild(nad);
 
             POLOZKY.forEach((p) => panel.appendChild(tlacidlo(p)));
@@ -4595,17 +4596,114 @@ body.${BODY_CLASS} #WorkcenterDetail--Order_Status_Flexbox {
 #${FOOTER_ID} .nd-f-n { font-weight:800; color:#13315c; letter-spacing:.04em; }
 #${FOOTER_ID} .nd-f-r { margin-left:auto; }
 body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
+
+/* ---------- horny pruh: navigacia ako biele pilulky, odhlasenie cervene ---------- */
+.nd-topbar { background:rgba(255,255,255,.88) !important; border-bottom:1px solid #e3ebf5 !important; }
+.nd-topbar .sapMBtn .sapMBtnInner { background:#fff !important; border:1px solid #dfe7f2 !important;
+  border-radius:12px !important; box-shadow:0 2px 8px rgba(16,36,63,.10) !important; color:#13315c !important;
+  font-weight:700 !important; padding:6px 14px !important; }
+.nd-topbar .sapMBtn .sapMBtnContent, .nd-topbar .sapMBtn bdi, .nd-topbar .sapMBtn .sapUiIcon { color:#13315c !important; }
+.nd-topbar [id$="Button_Logout"] .sapMBtnInner { background:#e23b3b !important; border-color:#c72f2f !important; }
+.nd-topbar [id$="Button_Logout"] .sapMBtnContent, .nd-topbar [id$="Button_Logout"] bdi,
+.nd-topbar [id$="Button_Logout"] .sapUiIcon { color:#fff !important; }
+
+/* ---------- riadok akcii pod stavmi: Vykres | Components/BOM | Stroj ON/OFF | Operation Complete ---------- */
+body.${BODY_CLASS} #__pda_detail_rightcol__ { flex:0 0 100% !important; width:100% !important; max-width:none !important;
+  flex-direction:row !important; align-items:center !important; gap:12px !important; margin:0 0 10px !important;
+  padding:10px 14px !important; background:#fff; border:1px solid #e3ebf5; border-radius:16px;
+  box-shadow:0 4px 14px rgba(16,36,63,.06); box-sizing:border-box; }
+body.${BODY_CLASS} #__pda_detail_rightcol__ .pda-machine { order:2; margin-left:auto !important; gap:8px !important; }
+body.${BODY_CLASS} #__pda_detail_rightcol__ .pda-machine .sapMLabel { display:none !important; }
+body.${BODY_CLASS} #__pda_detail_rightcol__ .pda-machine::before { content:'Stroj'; font:700 13px/1 -apple-system,"Segoe UI",Roboto,sans-serif;
+  color:#4a6285; margin-right:4px; }
+body.${BODY_CLASS} #__pda_detail_rightcol__ #WorkcenterDetail--Confirm_Button { order:3; }
+body.${BODY_CLASS} #__pda_order_drawing_wrapper__ > button { border:1px solid #dfe7f2 !important; border-radius:12px !important;
+  padding:8px 14px !important; box-shadow:0 2px 8px rgba(16,36,63,.08) !important; }
+body.${BODY_CLASS} .nd-bom .sapMBtnInner { background:#fff !important; border:1px solid #dfe7f2 !important; border-radius:12px !important;
+  padding:9px 14px !important; box-shadow:0 2px 8px rgba(16,36,63,.08) !important; color:#13315c !important; font-weight:700 !important; }
+body.${BODY_CLASS} #WorkcenterDetail--Confirm_Button .sapMBtnInner { background:linear-gradient(180deg,#2b7fe0,#1a5fc4) !important;
+  border:0 !important; border-radius:12px !important; padding:10px 22px !important;
+  box-shadow:0 6px 16px rgba(26,95,196,.35) !important; }
+body.${BODY_CLASS} #WorkcenterDetail--Confirm_Button .sapMBtnContent,
+body.${BODY_CLASS} #WorkcenterDetail--Confirm_Button bdi { color:#fff !important; font-weight:800 !important; font-size:14px !important; }
+body.${BODY_CLASS} #WorkcenterDetail--Confirm_Button .sapMBtnInner::before { content:'✓'; color:#fff; font-weight:900; margin-right:8px; }
+
+/* ---------- karta ZAKAZKA A MATERIAL: velky nazov materialu + riadky ---------- */
+body.${BODY_CLASS} #WorkcenterDetail--OrderHeader_FlexBox .sapUiForm { background:#fff !important; border:1px solid #e3ebf5 !important;
+  border-radius:16px !important; padding:14px 18px !important; box-shadow:0 4px 14px rgba(16,36,63,.06) !important; }
+.nd-mat-title { font:800 20px/1.25 -apple-system,"Segoe UI",Roboto,sans-serif; color:#13315c; margin:0 0 10px; }
+.nd-extra .nd-riadok { display:flex; gap:16px; font:14px/1.7 -apple-system,"Segoe UI",Roboto,sans-serif; }
+.nd-extra .k { flex:0 0 190px; color:#4a6285; }
+.nd-extra .v { color:#13315c; font-weight:600; }
+
+/* ---------- SAP casy: ploche kolace s percentom v strede a legendou ---------- */
+body.${BODY_CLASS} .pda-3d { transform:none !important; margin-top:6px !important;
+  filter:drop-shadow(0 6px 10px rgba(16,36,63,.16)) !important; }
+body.${BODY_CLASS} .pda-3d:hover { transform:none !important; }
+.nd-pct { position:absolute; transform:translate(-50%,-50%); text-align:center; pointer-events:none;
+  font-family:-apple-system,"Segoe UI",Roboto,sans-serif; }
+.nd-pct .c { display:block; font-size:22px; font-weight:800; color:#13315c; line-height:1; }
+.nd-pct .h { display:block; font-size:11px; color:#4a6285; margin-top:3px; }
+.nd-legenda { display:flex; gap:14px; justify-content:center; margin-top:8px;
+  font:12px/1.2 -apple-system,"Segoe UI",Roboto,sans-serif; color:#4a6285; }
+.nd-legenda i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+.nd-legenda .a i { background:#2b7fe0; }
+.nd-legenda .b i { background:#c9d4e2; }
+
+/* ---------- POPIS OPERACIE ako karta s "Cely text" ---------- */
+body.${BODY_CLASS} #__pda_opis_button__ { display:grid !important; grid-template-columns:1fr auto !important;
+  grid-template-rows:auto auto !important; column-gap:12px !important; row-gap:6px !important;
+  background:#fff !important; border:1px solid #e3ebf5 !important; border-radius:16px !important;
+  padding:12px 18px !important; box-shadow:0 4px 14px rgba(16,36,63,.06) !important; }
+body.${BODY_CLASS} #__pda_opis_button__ .ikona { display:none !important; }
+body.${BODY_CLASS} #__pda_opis_button__ .stred { display:contents !important; }
+body.${BODY_CLASS} #__pda_opis_button__ .nadpis { grid-column:1; grid-row:1; font-size:12px !important; letter-spacing:.14em !important;
+  color:#4a6285 !important; }
+body.${BODY_CLASS} #__pda_opis_button__ .sipka { grid-column:2; grid-row:1; font-size:13px !important; }
+body.${BODY_CLASS} #__pda_opis_button__ .ukazka { grid-column:1 / span 2; grid-row:2; white-space:normal !important;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  font-size:14px !important; line-height:1.5 !important; color:#17202e !important; }
+
+/* ---------- pravy panel PDA ---------- */
+body.${BODY_CLASS} #__pda_hf_menu__ { border-radius:18px !important; padding:12px !important; }
+body.${BODY_CLASS} #__pda_hf_menu__ .hf-logo { display:none !important; }
+body.${BODY_CLASS} #__pda_hf_menu__ .hf-nadpis { text-align:left; font-size:12px; letter-spacing:.14em; color:#4a6285; margin:2px 0 6px 2px; }
+body.${BODY_CLASS} #__pda_hf_menu__ .hf-btn { border:1px solid #e3ebf5 !important; background:#f6f9fd !important;
+  box-shadow:0 2px 6px rgba(16,36,63,.06) !important; padding:10px 12px !important; }
+body.${BODY_CLASS} #__pda_hf_menu__ .hf-btn .ik { width:38px !important; height:38px; border-radius:10px; background:#e6f0fb;
+  color:#1e6fd9; display:flex; align-items:center; justify-content:center; font-size:18px; }
+body.${BODY_CLASS} #__pda_hf_menu__ .hf-btn .ik.foto { background:transparent; }
+body.${BODY_CLASS} #__pda_hf_menu__ .hf-btn .n { font-size:14px !important; }
+.nd-hf-blok { display:flex; align-items:center; gap:12px; margin-top:auto; padding:14px 6px 4px; }
+.nd-hf-blok img { width:54px; height:54px; border-radius:12px; display:block; }
+.nd-hf-blok .t { font:800 12px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:.06em; color:#13315c; text-transform:uppercase; }
+.nd-slogan { font:800 12px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:.08em; color:#9fb0c8;
+  text-transform:uppercase; padding:8px 6px 2px; }
+
+/* ---------- lavy zoznam: pocet operacii v hlavicke ---------- */
+.nd-pocet { font:600 12px/1 -apple-system,"Segoe UI",Roboto,sans-serif; color:#4a6285; margin-left:10px; white-space:nowrap; }
 `;
             document.head.appendChild(st);
         }
 
         /* --- horny pruh: logo a nazov vedla povodnych ovladacich prvkov --- */
 
+        /*
+         * Cely horny pruh sa najde tak, ze sa od tlacidla Odhlasenie ide nahor,
+         * kym prvok nie je siroky aspon na 80 % okna - to je pruh cez celu sirku
+         * (nazvy tried UI5 sa nedaju spolahlivo uhadnut, sirka je istejsia).
+         */
         function hornyPruh() {
-            if (document.getElementById(HEADER_ID)) return;
             const odhlasenie = document.querySelector('[id$="Button_Logout"]');
-            const pruh = odhlasenie && odhlasenie.closest('.sapMIBar, .sapMBar, .sapMTB, .sapMOTB, .sapMShellHead, header');
-            if (!pruh) return;
+            if (!odhlasenie) return;
+            let pruh = odhlasenie.parentElement;
+            for (let i = 0; i < 8 && pruh; i++) {
+                if (pruh.getBoundingClientRect().width >= W.innerWidth * 0.8) break;
+                pruh = pruh.parentElement;
+            }
+            if (!pruh || pruh === document.body) return;
+            if (!pruh.classList.contains('nd-topbar')) pruh.classList.add('nd-topbar');
+            if (document.getElementById(HEADER_ID)) return;
 
             const box = document.createElement('div');
             box.id = HEADER_ID;
@@ -4686,6 +4784,218 @@ body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
             document.body.appendChild(f);
         }
 
+        /* --- vybrana operacia z premennych appky (len citanie) --- */
+
+        function vybranaOperacia() {
+            try {
+                const main = W.sap.ui.getCore().byId('Main');
+                const op = main && main.getController().getGlobals().getVar('oSelectedWorkcenterOperation');
+                return op && op.productionOrderNo ? op : null;
+            } catch (e) { return null; }
+        }
+
+        /*
+         * Riadok akcii pod stavovymi tlacidlami: VYKRES | Components/BOM |
+         * Stroj ON/OFF | Operation Complete. Stlpec s tymito prvkami uz drzi
+         * modul hlavicky (#__pda_detail_rightcol__); tu sa len presunie na
+         * zaciatok hlavicky (za nadpis) a CSS z neho spravi vodorovny riadok.
+         * Tlacidlo Components / BOM appky sa don presunie z praveho stlpca -
+         * je to ten isty prvok, len na inom mieste, jeho funkcia sa nemeni.
+         */
+        function riadokAkcii() {
+            const col = document.getElementById('__pda_detail_rightcol__');
+            const header = document.getElementById('WorkcenterDetail--OrderHeader_FlexBox');
+            if (!col || !header || col.parentElement !== header) return;
+
+            const prvy = header.firstElementChild;
+            const nadpisJe = prvy && prvy.dataset && prvy.dataset.ndNadpis;
+            const ciel = nadpisJe ? prvy.nextElementSibling : prvy;
+            if (ciel !== col) header.insertBefore(col, ciel);
+
+            document.querySelectorAll('.sapMBtn').forEach((b) => {
+                if (col.contains(b) || b.closest('.sapMDialog')) return;
+                if (!/^components/i.test((b.textContent || '').trim())) return;
+                if (!b.classList.contains('nd-bom')) b.classList.add('nd-bom');
+                const kotva = col.querySelector('.pda-machine');
+                col.insertBefore(b, kotva || null);
+            });
+        }
+
+        /*
+         * Karta ZAKAZKA A MATERIAL: nad riadky formulara sa da velky nazov
+         * materialu (z riadku "Material": "25199513 - S-TRAVERZE ..." -> text za
+         * pomlckou) a pod ne dva riadky navyse z vybranej operacie: mnozstvo a
+         * pracovisko. Hodnoty appky sa nemenia, len sa dopisu nase prvky.
+         */
+        function kartaZakazky() {
+            const form = document.querySelector('#WorkcenterDetail--OrderHeader_FlexBox .sapUiForm');
+            if (!form) return;
+
+            let nazov = '';
+            form.querySelectorAll('.sapMLabel').forEach((lab) => {
+                if (nazov || !/materi/i.test(lab.textContent || '')) return;
+                const row = lab.closest('.sapUiFormElement') || lab.closest('.sapUiRespGridRow');
+                const val = row && row.querySelector('.sapMText');
+                const t = val ? (val.textContent || '').trim() : '';
+                const m = t.match(/^\S+\s*-\s*(.+)$/);
+                nazov = (m ? m[1] : t).trim();
+            });
+
+            let title = null;
+            for (const ch of form.children) { if (ch.classList.contains('nd-mat-title')) { title = ch; break; } }
+            if (nazov && nazov !== '-') {
+                if (!title) {
+                    title = document.createElement('div');
+                    title.className = 'nd-mat-title';
+                    form.insertBefore(title, form.firstChild);
+                }
+                if (title.textContent !== nazov) title.textContent = nazov;
+            } else if (title) {
+                title.remove();
+            }
+
+            const op = vybranaOperacia();
+            let extra = null;
+            for (const ch of form.children) { if (ch.classList.contains('nd-extra')) { extra = ch; break; } }
+            if (!op) { if (extra) extra.remove(); return; }
+
+            const kluc = [op.productionOrderNo, op.operationNo, op.sequenceNo, op.targetQuantity].join('|');
+            if (extra && extra.dataset.kluc === kluc) return;
+            if (!extra) { extra = document.createElement('div'); extra.className = 'nd-extra'; form.appendChild(extra); }
+            extra.dataset.kluc = kluc;
+            extra.textContent = '';
+            const riadky = [];
+            if (op.targetQuantity !== undefined && op.targetQuantity !== null && String(op.targetQuantity) !== '') {
+                riadky.push(['Množstvo', String(op.targetQuantity) + ' ks']);
+            }
+            const prac = [op.workcenter, op.workcenterDescription].filter(Boolean).join(' - ');
+            if (prac) riadky.push(['Pracovisko', prac]);
+            riadky.forEach(([k, v]) => {
+                const r = document.createElement('div'); r.className = 'nd-riadok';
+                const kk = document.createElement('span'); kk.className = 'k'; kk.textContent = k;
+                const vv = document.createElement('span'); vv.className = 'v'; vv.textContent = v;
+                r.appendChild(kk); r.appendChild(vv); extra.appendChild(r);
+            });
+        }
+
+        /*
+         * SAP casy: percento "hotovo" v strede kolaca + legenda pod nim.
+         * Pocita sa z textu casov appky ("00:00:00 / 01:40:00" alebo "3144 / 3144 min"),
+         * kolac sa nekresli odznova - nas popis lezi nad nim.
+         */
+        const KOTVY_CASOV = ['WorkcenterDetail--SetupTime_Text', 'WorkcenterDetail--MachineTime_Text',
+                             'WorkcenterDetail--LaborTime_Text'];
+
+        function sekundy(t) {
+            t = String(t || '').trim();
+            if (/:/.test(t)) return t.split(':').map(Number).reduce((a, b) => a * 60 + (isNaN(b) ? 0 : b), 0);
+            const n = parseFloat(t.replace(',', '.'));
+            return isNaN(n) ? 0 : n;
+        }
+
+        function percentaKolacov() {
+            KOTVY_CASOV.forEach((id) => {
+                const text = document.getElementById(id);
+                if (!text) return;
+                const casti = (text.textContent || '').split('/');
+                if (casti.length < 2) return;
+                const hotovo = sekundy(casti[0]);
+                const plan = sekundy(casti[1]);
+                const pct = plan > 0 ? Math.round(hotovo / plan * 100) : 0;
+                const zostava = Math.max(0, 100 - pct);
+
+                const box = text.closest('.sapMVBox') || text.closest('.sapMFlexBox') || text.parentElement;
+                if (!box) return;
+                let canvas = null;
+                box.querySelectorAll('canvas, svg').forEach((g) => {
+                    if (!canvas && g.id !== 'ResourceDetails' && g.id !== 'DialogChart' &&
+                        g.getBoundingClientRect().width >= 60) canvas = g;
+                });
+                if (!canvas || !canvas.parentElement) return;
+
+                const par = canvas.parentElement;
+                if (par.style.position !== 'relative') par.style.position = 'relative';
+                let lbl = null;
+                for (const ch of par.children) { if (ch.classList.contains('nd-pct')) { lbl = ch; break; } }
+                if (!lbl) {
+                    lbl = document.createElement('div'); lbl.className = 'nd-pct';
+                    const c = document.createElement('span'); c.className = 'c';
+                    const h = document.createElement('span'); h.className = 'h'; h.textContent = 'hotovo';
+                    lbl.appendChild(c); lbl.appendChild(h);
+                    par.appendChild(lbl);
+                }
+                const c = lbl.querySelector('.c');
+                const pctTxt = pct + '%';
+                if (c.textContent !== pctTxt) c.textContent = pctTxt;
+                const lx = Math.round(canvas.offsetLeft + canvas.offsetWidth / 2) + 'px';
+                const ly = Math.round(canvas.offsetTop + canvas.offsetHeight / 2) + 'px';
+                if (lbl.style.left !== lx) lbl.style.left = lx;
+                if (lbl.style.top !== ly) lbl.style.top = ly;
+
+                let leg = null;
+                for (const ch of box.children) { if (ch.classList.contains('nd-legenda')) { leg = ch; break; } }
+                if (!leg) {
+                    leg = document.createElement('div'); leg.className = 'nd-legenda';
+                    const a = document.createElement('span'); a.className = 'a';
+                    const b = document.createElement('span'); b.className = 'b';
+                    a.appendChild(document.createElement('i')); a.appendChild(document.createTextNode(''));
+                    b.appendChild(document.createElement('i')); b.appendChild(document.createTextNode(''));
+                    leg.appendChild(a); leg.appendChild(b);
+                    box.appendChild(leg);
+                }
+                const ta = 'Hotovo ' + pct + '%', tb = 'Zostáva ' + zostava + '%';
+                const na = leg.querySelector('.a').lastChild, nb = leg.querySelector('.b').lastChild;
+                if (na.textContent !== ta) na.textContent = ta;
+                if (nb.textContent !== tb) nb.textContent = tb;
+            });
+        }
+
+        /* --- POPIS OPERACIE: odkaz "Cely text" namiesto "otvorit" --- */
+        function popisKarta() {
+            const sipka = document.querySelector('#__pda_opis_button__ .sipka');
+            if (sipka && sipka.textContent !== 'Celý text ›') sipka.textContent = 'Celý text ›';
+        }
+
+        /* --- lavy zoznam: pocet operacii vedla nadpisu "Pracovny zoznam" --- */
+        function pocetZoznamu() {
+            const box = document.getElementById('__pda_left_box_zoznam__') ||
+                        document.getElementById('WorkcenterDetail--LeftColumn_FlexBox');
+            if (!box) return;
+            let title = null;
+            box.querySelectorAll('.sapMTitle, .sapMLabel, .sapMText').forEach((el) => {
+                if (title) return;
+                const t = (el.textContent || '').toLowerCase();
+                if (t.indexOf('pracovn') !== -1 && t.indexOf('zoznam') !== -1 && !el.querySelector('.nd-pocet')) title = el;
+            });
+            if (!title) return;
+            let pocet = document.getElementById('__pda_nd_pocet__');
+            if (!pocet) {
+                pocet = document.createElement('span');
+                pocet.id = '__pda_nd_pocet__';
+                pocet.className = 'nd-pocet';
+            }
+            if (pocet.previousElementSibling !== title) title.insertAdjacentElement('afterend', pocet);
+            const n = document.querySelectorAll('#WorkcenterDetail--Work_List .sapMLIB').length;
+            const txt = n + (n === 1 ? ' operácia' : (n >= 2 && n <= 4 ? ' operácie' : ' operácií'));
+            if (pocet.textContent !== txt) pocet.textContent = txt;
+        }
+
+        /* --- pravy panel PDA: blok HF "System integrovany pre vyrobu" a slogan dole --- */
+        function pravyPanelPDA() {
+            const panel = document.getElementById('__pda_hf_menu__');
+            if (!panel || panel.querySelector('.nd-hf-blok')) return;
+            const blok = document.createElement('div');
+            blok.className = 'nd-hf-blok';
+            const img = document.createElement('img'); img.src = LOGO_HF_MALE; img.alt = 'HF';
+            const t = document.createElement('div'); t.className = 't'; t.textContent = 'Systém integrovaný pre výrobu';
+            blok.appendChild(img); blok.appendChild(t);
+            const slogan = document.createElement('div');
+            slogan.className = 'nd-slogan';
+            slogan.textContent = 'Smart manufacturing. Real results.';
+            panel.appendChild(blok);
+            panel.appendChild(slogan);
+        }
+
         function apply() {
             injectStyles();
             if (!document.body.classList.contains(BODY_CLASS)) document.body.classList.add(BODY_CLASS);
@@ -4699,6 +5009,11 @@ body.${BODY_CLASS} { padding-bottom:34px !important; box-sizing:border-box; }
 
             nadpisDo(document.getElementById('WorkcenterDetail--Order_Status_Flexbox'), 'Stav operácie', 'stav');
             nadpisDo(document.getElementById('WorkcenterDetail--OrderHeader_FlexBox'), 'Zákazka a materiál', 'zakazka');
+
+            // kazda cast zvlast v try/catch - chyba v jednej nesmie zhodit ostatne
+            [riadokAkcii, kartaZakazky, percentaKolacov, popisKarta, pocetZoznamu, pravyPanelPDA].forEach((f) => {
+                try { f(); } catch (e) { console.warn(LOG, 'novy dizajn:', f.name, e); }
+            });
         }
 
         DomWatch.add(apply);
