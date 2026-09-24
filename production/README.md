@@ -11,6 +11,8 @@ obrazovke, načítanie výkresov, obsluhu skenera a čítačky kariet.
 
 ## Inštalácia — stačí jeden skript
 
+**[▶ Inštalovať PDA Suite](https://github.com/JaroTvarozek/PDA-D_J-NEW/raw/refs/heads/main/production/pda-suite.user.js)**
+
 `pda-suite.user.js` obsahuje **všetkých 18 modulov v jednom súbore**. Nainštaluješ
 ho raz a jednotlivé moduly si potom zapínaš a vypínaš v nastaveniach — nemusíš
 nič odinštalovávať ani doinštalovávať.
@@ -110,6 +112,7 @@ takže build nezávisí na žiadnom súbore vedľa.
 1. Napísať funkciu `modNiecoNove()` v sekcii **3. MODULY**
 2. Pridať jeden riadok do zoznamu `MODULES` (`id`, `name`, `desc`, `def`, `run`)
 3. Zvýšiť `@version` v hlavičke — **inak Tampermonkey aktualizáciu nestiahne**
+   (aktualizuje sa z `@updateURL`, teda z vetvy `main` tohto repozitára)
 4. Commit a push
 
 Modul sa automaticky objaví v paneli nastavení. Ak niektorý modul spadne,
